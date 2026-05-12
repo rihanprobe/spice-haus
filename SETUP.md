@@ -13,7 +13,7 @@ const CONFIG = {
   // Replace with your real WhatsApp business number — digits only,
   // country code first, no '+', no spaces.
   // Example: '971501234567' for +971 50 123 4567
-  WA_NUMBER: '971500000000',
+  WA_NUMBER: '971524718286',
   ...
 };
 ```

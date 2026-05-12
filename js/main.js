@@ -4,9 +4,9 @@
    ============================================================ */
 
 const CONFIG = {
-  // TODO: Replace with your real WhatsApp business number (digits only, with country code, no '+').
-  // Example: '971501234567' for +971 50 123 4567
-  WA_NUMBER: '971500000000',
+  // WhatsApp business number (digits only, with country code, no '+').
+  // Currently: +971 52 471 8286
+  WA_NUMBER: '971524718286',
 
   // TODO: Paste your Google Apps Script Web App URL here.
   // Setup steps are in the README / chat. Leave empty to skip Sheets capture
