@@ -16,6 +16,9 @@ const CONFIG = {
   // Pricing — AED per kg, by meat type
   PRICES: { Beef: 185, Mutton: 205 },
 
+  // Flat delivery fee in AED (added when method = Delivery)
+  DELIVERY_FEE: 25,
+
   // 24-hour rule cutoff (Asia/Dubai local hour).
   // If you order BEFORE this hour, the earliest available date is tomorrow.
   // If you order AT or AFTER this hour, the earliest available date is day after tomorrow.
@@ -285,15 +288,21 @@ function initOrderForm() {
   const sumTotal  = $('#sum-total');
   const sumDelRow = $('#sum-delivery-row');
 
+  const sumDelivery = $('#sum-delivery');
+
   function recalc() {
     const q = parseInt(qty?.value || '1', 10);
     const meat = getSelectedMeat();
     const price = CONFIG.PRICES[meat] || CONFIG.PRICES.Beef;
     const subtotal = q * price;
-    if (sumQty)   sumQty.textContent   = q;
-    if (sumMeat)  sumMeat.textContent  = meat;
-    if (sumSub)   sumSub.textContent   = subtotal;
-    if (sumTotal) sumTotal.textContent = subtotal;
+    const isDelivery = !!(delivery && delivery.checked);
+    const fee = isDelivery ? CONFIG.DELIVERY_FEE : 0;
+    const total = subtotal + fee;
+    if (sumQty)      sumQty.textContent      = q;
+    if (sumMeat)     sumMeat.textContent     = meat;
+    if (sumSub)      sumSub.textContent      = subtotal;
+    if (sumDelivery) sumDelivery.textContent = 'AED ' + fee;
+    if (sumTotal)    sumTotal.textContent    = total;
   }
 
   function syncMethod() {
@@ -304,6 +313,7 @@ function initOrderForm() {
       if (!isDelivery) addrInput.value = '';
     }
     if (sumDelRow) sumDelRow.hidden = !isDelivery;
+    recalc();
   }
 
   qty?.addEventListener('change', recalc);
@@ -356,6 +366,8 @@ function collectOrder() {
   const meat = getSelectedMeat();
   const price = CONFIG.PRICES[meat] || CONFIG.PRICES.Beef;
   const rawDate = $('#o-date').value;
+  const subtotal = qty * price;
+  const deliveryFee = method === 'Delivery' ? CONFIG.DELIVERY_FEE : 0;
   return {
     name:     $('#o-name').value.trim(),
     phone:    $('#o-phone').value.trim(),
@@ -367,8 +379,10 @@ function collectOrder() {
     address:  method === 'Delivery' ? $('#o-address').value.trim() : '',
     date:     rawDate ? prettyDate(rawDate) : '',
     notes:    $('#o-notes').value.trim(),
-    subtotal: qty * price,
-    total:    qty * price,
+    subtotal,
+    delivery_fee: deliveryFee,
+    deliveryFee,
+    total:    subtotal + deliveryFee,
     currency: 'AED',
     source:   'spicehaus.org',
     submitted_at: new Date().toISOString(),
@@ -391,8 +405,8 @@ function buildWaMessage(o) {
   if (o.notes) lines.push(`*Notes:* ${o.notes}`);
   lines.push(``);
   lines.push(`*Subtotal:* AED ${o.subtotal}`);
-  if (o.method === 'Delivery') lines.push(`*Delivery fee:* to be confirmed`);
-  lines.push(`*Total:* AED ${o.total}${o.method === 'Delivery' ? ' + delivery' : ''}`);
+  if (o.method === 'Delivery') lines.push(`*Delivery fee:* AED ${o.delivery_fee}`);
+  lines.push(`*Total:* AED ${o.total}`);
   lines.push(``);
   lines.push(`Please confirm my order. Thank you.`);
   return lines.join('\n');
