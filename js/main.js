@@ -401,7 +401,7 @@ function buildWaMessage(o) {
   if (o.method === 'Delivery' && o.address) {
     lines.push(`*Address:* ${o.address}`);
   }
-  lines.push(`*Date:* ${prettyDate(o.date)}`);
+  lines.push(`*Date:* ${o.date}`);
   if (o.notes) lines.push(`*Notes:* ${o.notes}`);
   lines.push(``);
   lines.push(`*Subtotal:* AED ${o.subtotal}`);
