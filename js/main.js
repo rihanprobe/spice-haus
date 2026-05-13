@@ -11,7 +11,7 @@ const CONFIG = {
   // TODO: Paste your Google Apps Script Web App URL here.
   // Setup steps are in the README / chat. Leave empty to skip Sheets capture
   // (form will still open WhatsApp).
-  SHEET_WEBHOOK_URL: '',
+  SHEET_WEBHOOK_URL: 'https://script.google.com/macros/s/AKfycbzcuImZ3oWI9zp_05lwxKWuYV1NE8hYfuIBWv_AAVoW1oXchj1TxTnp2BATBgsa8BsX/exec',
 
   // Pricing — AED per kg, by meat type
   PRICES: { Beef: 185, Mutton: 205 },
@@ -355,15 +355,17 @@ function collectOrder() {
   const method = $('#m-delivery').checked ? 'Delivery' : 'Pickup';
   const meat = getSelectedMeat();
   const price = CONFIG.PRICES[meat] || CONFIG.PRICES.Beef;
+  const rawDate = $('#o-date').value;
   return {
     name:     $('#o-name').value.trim(),
     phone:    $('#o-phone').value.trim(),
     meat,
     price_per_kg: price,
+    pricePerKg: price,
     quantity: qty,
     method,
     address:  method === 'Delivery' ? $('#o-address').value.trim() : '',
-    date:     $('#o-date').value,
+    date:     rawDate ? prettyDate(rawDate) : '',
     notes:    $('#o-notes').value.trim(),
     subtotal: qty * price,
     total:    qty * price,
