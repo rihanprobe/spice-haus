@@ -384,9 +384,14 @@
         <div class="form-error" id="formError" role="alert"></div>
 
         <div class="form-grid">
-          <div class="form-field full">
-            <label for="o-name">Your name <span class="req">*</span></label>
-            <input type="text" id="o-name" name="name" required autocomplete="name" placeholder="e.g. Rihan Probe" />
+          <div class="form-field half">
+            <label for="o-first-name">First name <span class="req">*</span></label>
+            <input type="text" id="o-first-name" name="first_name" required autocomplete="given-name" placeholder="First name" />
+          </div>
+
+          <div class="form-field half">
+            <label for="o-last-name">Last name <span class="req">*</span></label>
+            <input type="text" id="o-last-name" name="last_name" required autocomplete="family-name" placeholder="Last name" />
           </div>
 
           <div class="form-field full">

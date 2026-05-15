@@ -205,12 +205,27 @@ const Modal = (() => {
   function open() {
     if (!modal) return;
     lastFocus = document.activeElement;
+
+    // Reset the form so it always opens fresh — no stale values from a
+    // previous attempt. .reset() restores HTML defaults (Beef + Pickup
+    // checked, all text fields empty). We then fire a change event on the
+    // pickup radio so the summary panel + address-field visibility re-sync.
+    const form = $('#orderForm', modal);
+    if (form) {
+      form.reset();
+      const pickupRadio = $('#m-pickup', modal);
+      if (pickupRadio) pickupRadio.dispatchEvent(new Event('change', { bubbles: true }));
+      const meatBeef = $('#m-beef', modal);
+      if (meatBeef) meatBeef.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    clearError();
+
     modal.classList.add('open');
     document.body.style.overflow = 'hidden';
     // refresh the date min every time we open
     applyDateMin();
     setTimeout(() => {
-      const first = $('#o-name', modal);
+      const first = $('#o-first-name', modal);
       if (first) first.focus();
     }, 50);
   }
@@ -346,7 +361,8 @@ function clearError() {
 }
 
 function validateOrder(data) {
-  if (!data.name || data.name.length < 2)      return 'Please enter your name.';
+  if (!data.first_name || data.first_name.length < 1) return 'Please enter your first name.';
+  if (!data.last_name  || data.last_name.length  < 1) return 'Please enter your last name.';
   if (!data.phone || data.phone.replace(/\D/g, '').length < 7) return 'Please enter a valid WhatsApp number.';
   if (!data.meat || !CONFIG.PRICES[data.meat]) return 'Please choose beef or mutton.';
   if (!data.quantity || data.quantity < 1)     return 'Please choose a quantity.';
@@ -368,8 +384,12 @@ function collectOrder() {
   const rawDate = $('#o-date').value;
   const subtotal = qty * price;
   const deliveryFee = method === 'Delivery' ? CONFIG.DELIVERY_FEE : 0;
+  const firstName = $('#o-first-name').value.trim();
+  const lastName  = $('#o-last-name').value.trim();
   return {
-    name:     $('#o-name').value.trim(),
+    first_name: firstName,
+    last_name:  lastName,
+    name:     (firstName + ' ' + lastName).trim(),
     phone:    $('#o-phone').value.trim(),
     meat,
     price_per_kg: price,

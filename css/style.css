@@ -867,6 +867,7 @@ section { padding-block: clamp(var(--space-16), 10vw, var(--space-32)); position
 .form-field { display: grid; gap: var(--space-2); }
 .form-field[hidden], [hidden] { display: none !important; }
 .form-field.full { grid-column: 1 / -1; }
+.form-field.half { grid-column: span 1; }
 .form-field label {
   font-size: 11px;
   font-weight: 700;
