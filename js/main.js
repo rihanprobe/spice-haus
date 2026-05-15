@@ -468,7 +468,7 @@ function buildWaMessage(o) {
     `*Phone:* ${o.phone}`,
     `*Order:* ${o.meat} Bhuna Gosht × ${o.quantity} kg (AED ${o.price_per_kg}/kg)`,
     `*Method:* ${o.method}`,
-  ];
+  );
   if (o.method === 'Delivery') {
     if (o.address) lines.push(`*Address:* ${o.address}`);
     if (o.city)    lines.push(`*City:* ${o.city}`);
