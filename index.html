@@ -451,11 +451,12 @@
               </select>
               <span class="form-help">We currently deliver to Sharjah, Ajman and Dubai only.</span>
             </div>
-            <div class="form-field" style="margin-top:12px">
-              <label for="o-time">Delivery time <span class="req">*</span></label>
-              <input type="time" id="o-time" name="delivery_time" min="12:00" max="23:00" step="900" />
-              <span class="form-help">Available between 12:00 PM and 11:00 PM.</span>
-            </div>
+          </div>
+
+          <div class="form-field full">
+            <label for="o-time" id="timeLabel">Pickup time <span class="req">*</span></label>
+            <input type="time" id="o-time" name="preferred_time" min="12:00" max="23:00" step="900" required />
+            <span class="form-help">Available between 12:00 PM and 11:00 PM.</span>
           </div>
 
           <div class="form-field full">

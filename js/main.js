@@ -299,6 +299,7 @@ function initOrderForm() {
   const addrInput = $('#o-address');
   const cityInput = $('#o-city');
   const timeInput = $('#o-time');
+  const timeLabel = $('#timeLabel');
   const sumQty    = $('#sum-qty');
   const sumMeat   = $('#sum-meat');
   const sumSub    = $('#sum-subtotal');
@@ -333,9 +334,10 @@ function initOrderForm() {
       cityInput.required = isDelivery;
       if (!isDelivery) cityInput.value = '';
     }
-    if (timeInput) {
-      timeInput.required = isDelivery;
-      if (!isDelivery) timeInput.value = '';
+    if (timeLabel) {
+      timeLabel.innerHTML = isDelivery
+        ? 'Delivery time <span class="req">*</span>'
+        : 'Pickup time <span class="req">*</span>';
     }
     if (sumDelRow) sumDelRow.hidden = !isDelivery;
     recalc();
@@ -388,15 +390,17 @@ function validateOrder(data) {
     if (!data.address || data.address.trim().length < 8) {
       return 'Please enter a delivery address.';
     }
-    if (!data.delivery_time) {
-      return 'Please choose a delivery time between 12:00 PM and 11:00 PM.';
-    }
-    // delivery_time is HH:MM 24h. Allow 12:00 (noon) up to 23:00 inclusive.
-    const [hh, mm] = data.delivery_time.split(':').map(n => parseInt(n, 10));
-    const minutes = hh * 60 + (mm || 0);
-    if (minutes < 12 * 60 || minutes > 23 * 60) {
-      return 'Delivery time must be between 12:00 PM and 11:00 PM.';
-    }
+  }
+  // Time required for both pickup and delivery.
+  if (!data.preferred_time) {
+    const which = data.method === 'Delivery' ? 'delivery' : 'pickup';
+    return `Please choose a ${which} time between 12:00 PM and 11:00 PM.`;
+  }
+  const [hh, mm] = data.preferred_time.split(':').map(n => parseInt(n, 10));
+  const minutes = hh * 60 + (mm || 0);
+  if (minutes < 12 * 60 || minutes > 23 * 60) {
+    const which = data.method === 'Delivery' ? 'Delivery' : 'Pickup';
+    return `${which} time must be between 12:00 PM and 11:00 PM.`;
   }
   return null;
 }
@@ -434,8 +438,8 @@ function collectOrder() {
     method,
     city:     method === 'Delivery' ? ($('#o-city').value || '').trim() : '',
     address:  method === 'Delivery' ? $('#o-address').value.trim() : '',
-    delivery_time: method === 'Delivery' ? ($('#o-time').value || '').trim() : '',
-    delivery_time_pretty: method === 'Delivery' ? prettyTime(($('#o-time').value || '').trim()) : '',
+    preferred_time: ($('#o-time').value || '').trim(),
+    preferred_time_pretty: prettyTime(($('#o-time').value || '').trim()),
     date:     rawDate ? prettyDate(rawDate) : '',
     notes:    $('#o-notes').value.trim(),
     subtotal,
@@ -474,8 +478,9 @@ function buildWaMessage(o) {
     if (o.city)    lines.push(`*City:* ${o.city}`);
   }
   lines.push(`*Date:* ${o.date}`);
-  if (o.method === 'Delivery' && o.delivery_time_pretty) {
-    lines.push(`*Delivery time:* ${o.delivery_time_pretty}`);
+  if (o.preferred_time_pretty) {
+    const label = o.method === 'Delivery' ? 'Delivery time' : 'Pickup time';
+    lines.push(`*${label}:* ${o.preferred_time_pretty}`);
   }
   if (o.notes) lines.push(`*Notes:* ${o.notes}`);
   lines.push(``);
