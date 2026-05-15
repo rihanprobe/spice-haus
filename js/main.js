@@ -297,6 +297,7 @@ function initOrderForm() {
   const meatRadios = $$('input[name="meat"]');
   const addrField = $('#addressField');
   const addrInput = $('#o-address');
+  const cityInput = $('#o-city');
   const sumQty    = $('#sum-qty');
   const sumMeat   = $('#sum-meat');
   const sumSub    = $('#sum-subtotal');
@@ -326,6 +327,10 @@ function initOrderForm() {
     if (addrInput) {
       addrInput.required = isDelivery;
       if (!isDelivery) addrInput.value = '';
+    }
+    if (cityInput) {
+      cityInput.required = isDelivery;
+      if (!isDelivery) cityInput.value = '';
     }
     if (sumDelRow) sumDelRow.hidden = !isDelivery;
     recalc();
@@ -370,8 +375,14 @@ function validateOrder(data) {
   // Re-enforce 24h rule defensively
   const minDate = $('#o-date')?.min;
   if (minDate && data.date < minDate)          return `Earliest available date is ${prettyDate(minDate)} (24-hour notice).`;
-  if (data.method === 'Delivery' && (!data.address || data.address.trim().length < 8)) {
-    return 'Please enter a delivery address.';
+  if (data.method === 'Delivery') {
+    const allowedCities = ['Sharjah', 'Ajman', 'Dubai'];
+    if (!data.city || !allowedCities.includes(data.city)) {
+      return 'Please select a city (Sharjah, Ajman or Dubai).';
+    }
+    if (!data.address || data.address.trim().length < 8) {
+      return 'Please enter a delivery address.';
+    }
   }
   return null;
 }
@@ -396,6 +407,7 @@ function collectOrder() {
     pricePerKg: price,
     quantity: qty,
     method,
+    city:     method === 'Delivery' ? ($('#o-city').value || '').trim() : '',
     address:  method === 'Delivery' ? $('#o-address').value.trim() : '',
     date:     rawDate ? prettyDate(rawDate) : '',
     notes:    $('#o-notes').value.trim(),
@@ -422,8 +434,9 @@ function buildWaMessage(o) {
     `*Order:* ${o.meat} Bhuna Gosht × ${o.quantity} kg (AED ${o.price_per_kg}/kg)`,
     `*Method:* ${o.method}`,
   ];
-  if (o.method === 'Delivery' && o.address) {
-    lines.push(`*Address:* ${o.address}`);
+  if (o.method === 'Delivery') {
+    if (o.city)    lines.push(`*City:* ${o.city}`);
+    if (o.address) lines.push(`*Address:* ${o.address}`);
   }
   lines.push(`*Date:* ${o.date}`);
   if (o.notes) lines.push(`*Notes:* ${o.notes}`);
