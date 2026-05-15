@@ -438,7 +438,10 @@
           </div>
 
           <div class="form-field full" id="addressField" hidden>
-            <div class="form-field" style="margin-bottom:12px">
+            <label for="o-address">Delivery address <span class="req">*</span></label>
+            <textarea id="o-address" name="address" placeholder="Building, street, area"></textarea>
+            <span class="form-help" style="margin-bottom:12px">Flat AED 25 delivery fee.</span>
+            <div class="form-field" style="margin-top:12px">
               <label for="o-city">City <span class="req">*</span></label>
               <select id="o-city" name="city">
                 <option value="" disabled selected>Select your emirate</option>
@@ -448,9 +451,6 @@
               </select>
               <span class="form-help">We currently deliver to Sharjah, Ajman and Dubai only.</span>
             </div>
-            <label for="o-address">Delivery address <span class="req">*</span></label>
-            <textarea id="o-address" name="address" placeholder="Building, street, area"></textarea>
-            <span class="form-help">Flat AED 25 delivery fee.</span>
           </div>
 
           <div class="form-field full">
