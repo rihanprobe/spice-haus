@@ -298,6 +298,7 @@ function initOrderForm() {
   const addrField = $('#addressField');
   const addrInput = $('#o-address');
   const cityInput = $('#o-city');
+  const timeInput = $('#o-time');
   const sumQty    = $('#sum-qty');
   const sumMeat   = $('#sum-meat');
   const sumSub    = $('#sum-subtotal');
@@ -331,6 +332,10 @@ function initOrderForm() {
     if (cityInput) {
       cityInput.required = isDelivery;
       if (!isDelivery) cityInput.value = '';
+    }
+    if (timeInput) {
+      timeInput.required = isDelivery;
+      if (!isDelivery) timeInput.value = '';
     }
     if (sumDelRow) sumDelRow.hidden = !isDelivery;
     recalc();
@@ -383,8 +388,28 @@ function validateOrder(data) {
     if (!data.address || data.address.trim().length < 8) {
       return 'Please enter a delivery address.';
     }
+    if (!data.delivery_time) {
+      return 'Please choose a delivery time between 12:00 PM and 11:00 PM.';
+    }
+    // delivery_time is HH:MM 24h. Allow 12:00 (noon) up to 23:00 inclusive.
+    const [hh, mm] = data.delivery_time.split(':').map(n => parseInt(n, 10));
+    const minutes = hh * 60 + (mm || 0);
+    if (minutes < 12 * 60 || minutes > 23 * 60) {
+      return 'Delivery time must be between 12:00 PM and 11:00 PM.';
+    }
   }
   return null;
+}
+
+function prettyTime(hhmm) {
+  if (!hhmm) return '';
+  const [hStr, mStr] = hhmm.split(':');
+  let h = parseInt(hStr, 10);
+  const m = mStr || '00';
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  if (h === 0) h = 12;
+  else if (h > 12) h -= 12;
+  return `${h}:${m} ${ampm}`;
 }
 
 function collectOrder() {
@@ -409,6 +434,8 @@ function collectOrder() {
     method,
     city:     method === 'Delivery' ? ($('#o-city').value || '').trim() : '',
     address:  method === 'Delivery' ? $('#o-address').value.trim() : '',
+    delivery_time: method === 'Delivery' ? ($('#o-time').value || '').trim() : '',
+    delivery_time_pretty: method === 'Delivery' ? prettyTime(($('#o-time').value || '').trim()) : '',
     date:     rawDate ? prettyDate(rawDate) : '',
     notes:    $('#o-notes').value.trim(),
     subtotal,
@@ -426,19 +453,30 @@ function buildWaMessage(o) {
   const header = o.order_number
     ? `*New Spice Haus Order — ${o.order_number}*`
     : `*New Spice Haus Order*`;
-  const lines = [
-    header,
-    ``,
+  const lines = [header, ``];
+  if (o.is_returning) {
+    const firstName = (o.first_name || o.name || '').split(' ')[0];
+    const count = o.previous_orders_count ? ` (order #${o.previous_orders_count + 1})` : '';
+    lines.push(`Hi team — it's ${firstName} again${count}. Thank you for the repeat service.`);
+    lines.push(``);
+  } else {
+    lines.push(`Hi Spice Haus team — I'd like to place an order.`);
+    lines.push(``);
+  }
+  lines.push(
     `*Name:* ${o.name}`,
     `*Phone:* ${o.phone}`,
     `*Order:* ${o.meat} Bhuna Gosht × ${o.quantity} kg (AED ${o.price_per_kg}/kg)`,
     `*Method:* ${o.method}`,
   ];
   if (o.method === 'Delivery') {
-    if (o.city)    lines.push(`*City:* ${o.city}`);
     if (o.address) lines.push(`*Address:* ${o.address}`);
+    if (o.city)    lines.push(`*City:* ${o.city}`);
   }
   lines.push(`*Date:* ${o.date}`);
+  if (o.method === 'Delivery' && o.delivery_time_pretty) {
+    lines.push(`*Delivery time:* ${o.delivery_time_pretty}`);
+  }
   if (o.notes) lines.push(`*Notes:* ${o.notes}`);
   lines.push(``);
   lines.push(`*Subtotal:* AED ${o.subtotal}`);
@@ -448,6 +486,7 @@ function buildWaMessage(o) {
   lines.push(`Please confirm my order. Thank you.`);
   return lines.join('\n');
 }
+
 
 async function sendToSheet(order) {
   if (!CONFIG.SHEET_WEBHOOK_URL) return { skipped: true };
@@ -492,6 +531,10 @@ function initSubmit() {
       if (result && result.order_number) {
         orderNumber = result.order_number;
         order.order_number = orderNumber;
+      }
+      if (result && result.is_returning) {
+        order.is_returning = true;
+        order.previous_orders_count = result.previous_orders_count || 0;
       }
     } catch (_) { /* non-blocking */ }
 
