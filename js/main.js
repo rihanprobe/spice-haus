@@ -411,8 +411,11 @@ function collectOrder() {
 }
 
 function buildWaMessage(o) {
+  const header = o.order_number
+    ? `*New Spice Haus Order — ${o.order_number}*`
+    : `*New Spice Haus Order*`;
   const lines = [
-    `*New Spice Haus Order*`,
+    header,
     ``,
     `*Name:* ${o.name}`,
     `*Phone:* ${o.phone}`,
@@ -436,14 +439,17 @@ function buildWaMessage(o) {
 async function sendToSheet(order) {
   if (!CONFIG.SHEET_WEBHOOK_URL) return { skipped: true };
   try {
-    // no-cors avoids preflight; Apps Script accepts text/plain body.
-    await fetch(CONFIG.SHEET_WEBHOOK_URL, {
+    // Use text/plain to avoid CORS preflight (Apps Script doPost reads
+    // e.postData.contents either way). Default mode='cors' so we can read
+    // the JSON response containing the assigned order_number.
+    const res = await fetch(CONFIG.SHEET_WEBHOOK_URL, {
       method: 'POST',
-      mode: 'no-cors',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify(order),
+      redirect: 'follow',
     });
-    return { ok: true };
+    const data = await res.json().catch(() => ({}));
+    return { ok: true, ...data };
   } catch (err) {
     console.warn('Sheets capture failed:', err);
     return { ok: false, error: err };
@@ -467,8 +473,13 @@ function initSubmit() {
     btn.classList.add('btn-loading');
     btn.disabled = true;
 
+    let orderNumber = '';
     try {
-      await sendToSheet(order);
+      const result = await sendToSheet(order);
+      if (result && result.order_number) {
+        orderNumber = result.order_number;
+        order.order_number = orderNumber;
+      }
     } catch (_) { /* non-blocking */ }
 
     const text = encodeURIComponent(buildWaMessage(order));
