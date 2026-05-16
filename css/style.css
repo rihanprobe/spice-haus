@@ -898,6 +898,11 @@ section { padding-block: clamp(var(--space-16), 10vw, var(--space-32)); position
   display: inline-flex; align-items: center; justify-content: center;
   color: var(--ink-700);
   flex-shrink: 0;
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: rgba(250,246,238,0.85);
+  z-index: 3;
 }
 .modal-close:hover { background: rgba(45,95,93,0.08); }
 
@@ -1140,21 +1145,31 @@ section { padding-block: clamp(var(--space-16), 10vw, var(--space-32)); position
 
 @media (max-width: 720px) {
   .charity-seal {
-    width: 100px;
-    height: 100px;
+    width: 92px;
+    height: 92px;
     right: 56px;
   }
 }
 @media (max-width: 480px) {
   .charity-seal {
-    position: static;
+    /* Stay anchored top-right on mobile, smaller, so the title sits beside it */
+    position: absolute;
+    top: 14px;
+    right: 54px;
     transform: none;
-    margin: 8px auto 0;
-    width: 120px;
-    height: 120px;
+    margin: 0;
+    width: 72px;
+    height: 72px;
   }
   .modal-head {
-    flex-direction: column;
+    /* keep flex row so title aligns; reserve right-side room for seal+close */
+    flex-direction: row;
     align-items: flex-start;
+    padding-right: 140px;
   }
+  .modal-head > div:first-child {
+    max-width: 100%;
+  }
+  .modal-head h3 { font-size: 1.05rem; line-height: 1.25; }
+  .modal-head p  { font-size: 0.8rem; }
 }
