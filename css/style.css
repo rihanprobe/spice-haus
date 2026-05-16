@@ -848,6 +848,20 @@ section { padding-block: clamp(var(--space-16), 10vw, var(--space-32)); position
 }
 .modal-head p { font-size: var(--text-sm); color: var(--ink-500); margin: 0; }
 
+/* Reserve horizontal space for the charity seal so the title/subtitle
+   never crash into it on desktop. The seal lives ~110px wide + ~64px from
+   the right edge of the modal, so we cap the title block at ~60% width. */
+.modal-head > div:first-child {
+  flex: 1 1 auto;
+  max-width: calc(100% - 200px);
+}
+@media (max-width: 720px) {
+  .modal-head > div:first-child { max-width: calc(100% - 150px); }
+}
+@media (max-width: 480px) {
+  .modal-head > div:first-child { max-width: 100%; }
+}
+
 .modal-close {
   width: 36px; height: 36px;
   border-radius: 50%;
@@ -1044,9 +1058,10 @@ section { padding-block: clamp(var(--space-16), 10vw, var(--space-32)); position
   margin-top: var(--space-3, 12px);
   padding: var(--space-3, 12px) var(--space-4, 16px);
   border-radius: 12px;
-  background: rgba(201, 154, 75, 0.08);
-  border: 1px solid rgba(201, 154, 75, 0.25);
-  color: var(--ink, #1a1a1a);
+  /* Stronger contrast for placement inside the dark teal order summary */
+  background: rgba(201, 154, 75, 0.18);
+  border: 1px solid rgba(201, 154, 75, 0.55);
+  color: var(--cream-50, #FAF6EE);
   display: flex;
   align-items: flex-start;
   gap: 10px;
@@ -1059,7 +1074,7 @@ section { padding-block: clamp(var(--space-16), 10vw, var(--space-32)); position
   margin-top: 2px;
 }
 .charity-note strong { color: var(--brass, #C99A4B); font-weight: 700; }
-.charity-note em { font-style: italic; opacity: 0.85; }
+.charity-note em { font-style: italic; opacity: 0.9; color: var(--cream-50, #FAF6EE); }
 
 @media (max-width: 720px) {
   .charity-seal {
