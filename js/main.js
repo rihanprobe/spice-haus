@@ -229,6 +229,17 @@ const Modal = (() => {
     }
     clearError();
 
+    // Reset prefill + geo state so they don't show stale info
+    const prefillHint = $('#prefillHint', modal);
+    if (prefillHint) prefillHint.hidden = true;
+    _lastLookupPhone = '';
+    const geoBtn = $('#btnGeo', modal);
+    const geoLabel = $('#btnGeoLabel', modal);
+    const geoStatus = $('#geoStatus', modal);
+    if (geoBtn) { geoBtn.classList.remove('is-success', 'is-loading'); }
+    if (geoLabel) geoLabel.textContent = 'Use my current location';
+    if (geoStatus) { geoStatus.textContent = ''; geoStatus.classList.remove('error'); }
+
     modal.classList.add('open');
     document.body.style.overflow = 'hidden';
     // refresh the date min every time we open
@@ -429,6 +440,121 @@ function prettyTime(hhmm) {
   return `${h}:${m} ${ampm}`;
 }
 
+/* ------------------------------------------------------------
+   Phone lookup (auto-fill returning customer details)
+   ------------------------------------------------------------ */
+
+let _lookupTimer = null;
+let _lastLookupPhone = '';
+
+async function lookupByPhone(rawPhone) {
+  if (!CONFIG.SHEET_WEBHOOK_URL) return null;
+  const digits = (rawPhone || '').replace(/\D/g, '');
+  if (digits.length < 7) return null;
+  if (digits === _lastLookupPhone) return null;
+  _lastLookupPhone = digits;
+  try {
+    const url = CONFIG.SHEET_WEBHOOK_URL + '?action=lookup&phone=' + encodeURIComponent(rawPhone);
+    const res = await fetch(url, { method: 'GET', redirect: 'follow' });
+    const data = await res.json().catch(() => ({}));
+    return data && data.ok ? data : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function applyPrefill(data) {
+  if (!data || !data.found) return;
+  const fn = $('#o-first-name');
+  const ln = $('#o-last-name');
+  const addr = $('#o-address');
+  const city = $('#o-city');
+  // Only fill empty fields so we don't clobber what the user just typed.
+  if (fn && !fn.value && data.first_name) fn.value = data.first_name;
+  if (ln && !ln.value && data.last_name)  ln.value = data.last_name;
+  if (addr && !addr.value && data.address) addr.value = data.address;
+  if (city && !city.value && data.city)    city.value = data.city;
+  const hint = $('#prefillHint');
+  const hintText = $('#prefillHintText');
+  if (hint) hint.hidden = false;
+  if (hintText) {
+    const fname = (data.first_name || '').split(' ')[0] || 'there';
+    const orderCount = data.previous_orders_count || 0;
+    hintText.textContent = orderCount > 1
+      ? `Welcome back, ${fname} — we filled in your last details (order #${orderCount + 1}). Edit anything you like.`
+      : `Welcome back, ${fname} — we filled in your last details. Edit anything you like.`;
+  }
+}
+
+function initPhoneLookup() {
+  const phone = $('#o-phone');
+  if (!phone) return;
+  const trigger = () => {
+    clearTimeout(_lookupTimer);
+    _lookupTimer = setTimeout(async () => {
+      const result = await lookupByPhone(phone.value);
+      if (result) applyPrefill(result);
+    }, 600);
+  };
+  phone.addEventListener('blur', trigger);
+  phone.addEventListener('input', () => {
+    // reset the prefill hint when the user changes the phone
+    const hint = $('#prefillHint');
+    if (hint && !hint.hidden) hint.hidden = true;
+    _lastLookupPhone = '';
+  });
+}
+
+/* ------------------------------------------------------------
+   Geolocation (browser GPS — free, no API key)
+   ------------------------------------------------------------ */
+
+function initGeolocation() {
+  const btn = $('#btnGeo');
+  const label = $('#btnGeoLabel');
+  const status = $('#geoStatus');
+  const latIn = $('#o-lat');
+  const lngIn = $('#o-lng');
+  if (!btn) return;
+
+  if (!('geolocation' in navigator)) {
+    btn.disabled = true;
+    if (status) { status.textContent = 'Geolocation not available'; status.classList.add('error'); }
+    return;
+  }
+
+  btn.addEventListener('click', () => {
+    btn.classList.add('is-loading');
+    btn.classList.remove('is-success');
+    if (label)  label.textContent = 'Getting your location…';
+    if (status) { status.textContent = ''; status.classList.remove('error'); }
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        btn.classList.remove('is-loading');
+        btn.classList.add('is-success');
+        const lat = pos.coords.latitude.toFixed(6);
+        const lng = pos.coords.longitude.toFixed(6);
+        if (latIn) latIn.value = lat;
+        if (lngIn) lngIn.value = lng;
+        if (label)  label.textContent = 'Location captured';
+        if (status) status.textContent = `±${Math.round(pos.coords.accuracy)}m accuracy`;
+      },
+      (err) => {
+        btn.classList.remove('is-loading');
+        if (label) label.textContent = 'Use my current location';
+        if (status) {
+          status.classList.add('error');
+          status.textContent = err.code === err.PERMISSION_DENIED
+            ? 'Permission denied. Please allow location in your browser settings.'
+            : 'Could not get location. Please type your address.';
+        }
+      },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 }
+    );
+  });
+}
+
 function collectOrder() {
   const qty = parseInt($('#o-qty').value || '1', 10);
   const method = $('#m-delivery').checked ? 'Delivery' : 'Pickup';
@@ -451,6 +577,8 @@ function collectOrder() {
     method,
     city:     method === 'Delivery' ? ($('#o-city').value || '').trim() : '',
     address:  method === 'Delivery' ? $('#o-address').value.trim() : '',
+    lat:      method === 'Delivery' ? ($('#o-lat')?.value || '').trim() : '',
+    lng:      method === 'Delivery' ? ($('#o-lng')?.value || '').trim() : '',
     preferred_time: ($('#o-time').value || '').trim(),
     preferred_time_pretty: prettyTime(($('#o-time').value || '').trim()),
     date:     rawDate ? prettyDate(rawDate) : '',
@@ -489,6 +617,9 @@ function buildWaMessage(o) {
   if (o.method === 'Delivery') {
     if (o.address) lines.push(`*Address:* ${o.address}`);
     if (o.city)    lines.push(`*City:* ${o.city}`);
+    if (o.lat && o.lng) {
+      lines.push(`*Pin location:* https://maps.google.com/?q=${o.lat},${o.lng}`);
+    }
   }
   lines.push(`*Date:* ${o.date}`);
   if (o.preferred_time_pretty) {
@@ -585,5 +716,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initWaLinks();
   Modal.init();
   initOrderForm();
+  initPhoneLookup();
+  initGeolocation();
   initSubmit();
 });
