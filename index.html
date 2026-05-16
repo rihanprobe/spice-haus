@@ -381,11 +381,13 @@
           <!-- ROTATING RING (text only, no dashed circle) -->
           <svg class="seal-ring" viewBox="0 0 200 200" width="130" height="130" aria-hidden="true">
             <defs>
-              <path id="sealCircle" d="M 100, 100 m -82, 0 a 82,82 0 1,1 164,0 a 82,82 0 1,1 -164,0"/>
+              <!-- Text path pulled inward (radius 72) so letters don't kiss the gold border -->
+              <path id="sealCircle" d="M 100, 100 m -72, 0 a 72,72 0 1,1 144,0 a 72,72 0 1,1 -144,0"/>
             </defs>
             <circle cx="100" cy="100" r="95" fill="#1F4F4D" stroke="#C99A4B" stroke-width="2"/>
-            <text fill="#F1D89E" font-size="17" font-weight="800" letter-spacing="2.5">
-              <textPath href="#sealCircle" startOffset="0%">10% FOR THOSE IN NEED · EVERY ORDER GIVES BACK · </textPath>
+            <text fill="#F1D89E" font-size="16" font-weight="800" letter-spacing="2">
+              <!-- Stars used as proper separators — prevent letters butting together at the loop seam (e.g. "BACK" → "10%" reading as "B 10") -->
+              <textPath href="#sealCircle" startOffset="0%">10% FOR THOSE IN NEED ★ EVERY ORDER GIVES BACK ★ </textPath>
             </text>
           </svg>
           <!-- STATIC CENTER -->
