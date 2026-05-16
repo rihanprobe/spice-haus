@@ -853,10 +853,10 @@ section { padding-block: clamp(var(--space-16), 10vw, var(--space-32)); position
    the right edge of the modal, so we cap the title block at ~60% width. */
 .modal-head > div:first-child {
   flex: 1 1 auto;
-  max-width: calc(100% - 200px);
+  max-width: calc(100% - 220px);
 }
 @media (max-width: 720px) {
-  .modal-head > div:first-child { max-width: calc(100% - 150px); }
+  .modal-head > div:first-child { max-width: calc(100% - 170px); }
 }
 @media (max-width: 480px) {
   .modal-head > div:first-child { max-width: 100%; }
@@ -1037,21 +1037,30 @@ section { padding-block: clamp(var(--space-16), 10vw, var(--space-32)); position
   top: 50%;
   right: 64px;            /* leave room for the close button */
   transform: translateY(-50%);
-  width: 110px;
-  height: 110px;
-  color: var(--brass, #C99A4B);
+  width: 130px;
+  height: 130px;
   pointer-events: none;
-  animation: charity-spin 28s linear infinite;
   filter: drop-shadow(0 2px 6px rgba(201,154,75,0.25));
 }
-.charity-seal svg { width: 100%; height: 100%; display: block; }
+.charity-seal svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.charity-seal .seal-ring {
+  animation: charity-spin 28s linear infinite;
+  transform-origin: 50% 50%;
+}
+.charity-seal .seal-center { animation: none; }
 
 @keyframes charity-spin {
-  from { transform: translateY(-50%) rotate(0deg); }
-  to   { transform: translateY(-50%) rotate(360deg); }
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .charity-seal { animation: none; }
+  .charity-seal .seal-ring { animation: none; }
 }
 
 .charity-note {
@@ -1083,8 +1092,8 @@ section { padding-block: clamp(var(--space-16), 10vw, var(--space-32)); position
 
 @media (max-width: 720px) {
   .charity-seal {
-    width: 78px;
-    height: 78px;
+    width: 100px;
+    height: 100px;
     right: 56px;
   }
 }
@@ -1093,11 +1102,8 @@ section { padding-block: clamp(var(--space-16), 10vw, var(--space-32)); position
     position: static;
     transform: none;
     margin: 8px auto 0;
-    animation: charity-spin-static 28s linear infinite;
-  }
-  @keyframes charity-spin-static {
-    from { transform: rotate(0deg); }
-    to   { transform: rotate(360deg); }
+    width: 120px;
+    height: 120px;
   }
   .modal-head {
     flex-direction: column;
