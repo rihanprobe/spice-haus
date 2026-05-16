@@ -267,10 +267,12 @@ a, button, [role="button"], input, textarea, select {
   text-decoration: none;
 }
 .brand-mark {
-  height: 52px;
+  height: 44px;
   width: auto;
   display: block;
   flex-shrink: 0;
+  object-fit: contain;
+  padding: 2px 0 4px;
 }
 .brand-stack {
   display: flex;
@@ -281,7 +283,7 @@ a, button, [role="button"], input, textarea, select {
 }
 .brand-name {
   font-family: var(--font-display, 'Playfair Display', Georgia, serif);
-  font-size: 26px;
+  font-size: 24px;
   font-weight: 700;
   letter-spacing: 0.01em;
   color: var(--cream-50);
@@ -297,8 +299,8 @@ a, button, [role="button"], input, textarea, select {
 }
 @media (max-width: 640px) {
   .brand { gap: 10px; }
-  .brand-mark { height: 42px; }
-  .brand-name { font-size: 20px; }
+  .brand-mark { height: 36px; padding: 2px 0 3px; }
+  .brand-name { font-size: 19px; }
   .brand-tag { font-size: 9px; letter-spacing: 0.22em; }
 }
 
