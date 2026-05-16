@@ -249,19 +249,30 @@ a, button, [role="button"], input, textarea, select {
 .brand {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: 12px;
   color: var(--cream-50);
+  text-decoration: none;
+}
+.brand-mark {
+  height: 52px;
+  width: auto;
+  display: block;
+  flex-shrink: 0;
 }
 .brand-stack {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 6px;
+  align-items: flex-start;
+  gap: 4px;
+  line-height: 1;
 }
-.brand-logo {
-  height: 56px;
-  width: auto;
-  display: block;
+.brand-name {
+  font-family: var(--font-display, 'Playfair Display', Georgia, serif);
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--cream-50);
+  line-height: 1;
 }
 .brand-tag {
   font-size: 10px;
@@ -272,7 +283,9 @@ a, button, [role="button"], input, textarea, select {
   line-height: 1;
 }
 @media (max-width: 640px) {
-  .brand-logo { height: 44px; }
+  .brand { gap: 10px; }
+  .brand-mark { height: 42px; }
+  .brand-name { font-size: 20px; }
   .brand-tag { font-size: 9px; letter-spacing: 0.22em; }
 }
 
