@@ -3,6 +3,15 @@
    Single-item ordering flow: form → Google Sheets → WhatsApp
    ============================================================ */
 
+// Always open the page at the top — disable browser scroll restoration
+// so returning visitors aren't dropped at the bottom of the page.
+if ('scrollRestoration' in history) {
+  history.scrollRestoration = 'manual';
+}
+window.addEventListener('load', () => {
+  if (!location.hash) window.scrollTo(0, 0);
+});
+
 const CONFIG = {
   // WhatsApp business number (digits only, with country code, no '+').
   // Currently: +971 52 471 8286
