@@ -316,6 +316,7 @@ function initOrderForm() {
   const sumDelRow = $('#sum-delivery-row');
 
   const sumDelivery = $('#sum-delivery');
+  const charityAmount = $('#charity-amount');
 
   function recalc() {
     const q = parseInt(qty?.value || '1', 10);
@@ -325,11 +326,14 @@ function initOrderForm() {
     const isDelivery = !!(delivery && delivery.checked);
     const fee = isDelivery ? CONFIG.DELIVERY_FEE : 0;
     const total = subtotal + fee;
-    if (sumQty)      sumQty.textContent      = q;
-    if (sumMeat)     sumMeat.textContent     = meat;
-    if (sumSub)      sumSub.textContent      = subtotal;
-    if (sumDelivery) sumDelivery.textContent = 'AED ' + fee;
-    if (sumTotal)    sumTotal.textContent    = total;
+    // 10% of food subtotal goes to charity (delivery fee excluded — it's cost, not revenue)
+    const charity = (subtotal * 0.10).toFixed(2);
+    if (sumQty)        sumQty.textContent        = q;
+    if (sumMeat)       sumMeat.textContent       = meat;
+    if (sumSub)        sumSub.textContent        = subtotal;
+    if (sumDelivery)   sumDelivery.textContent   = 'AED ' + fee;
+    if (sumTotal)      sumTotal.textContent      = total;
+    if (charityAmount) charityAmount.textContent = charity;
   }
 
   function syncMethod() {
@@ -496,6 +500,8 @@ function buildWaMessage(o) {
   lines.push(`*Subtotal:* AED ${o.subtotal}`);
   if (o.method === 'Delivery') lines.push(`*Delivery fee:* AED ${o.delivery_fee}`);
   lines.push(`*Total:* AED ${o.total}`);
+  const charity = (Number(o.subtotal) * 0.10).toFixed(2);
+  lines.push(`*Charity (10% of food):* AED ${charity} — thank you for feeding someone in need`);
   lines.push(``);
   lines.push(`Please confirm my order. Thank you.`);
   return lines.join('\n');
