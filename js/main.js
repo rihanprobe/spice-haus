@@ -229,16 +229,10 @@ const Modal = (() => {
     }
     clearError();
 
-    // Reset prefill + geo state so they don't show stale info
+    // Reset prefill state so it doesn't show stale info
     const prefillHint = $('#prefillHint', modal);
     if (prefillHint) prefillHint.hidden = true;
     _lastLookupPhone = '';
-    const geoBtn = $('#btnGeo', modal);
-    const geoLabel = $('#btnGeoLabel', modal);
-    const geoStatus = $('#geoStatus', modal);
-    if (geoBtn) { geoBtn.classList.remove('is-success', 'is-loading'); }
-    if (geoLabel) geoLabel.textContent = 'Use my current location';
-    if (geoStatus) { geoStatus.textContent = ''; geoStatus.classList.remove('error'); }
 
     modal.classList.add('open');
     document.body.style.overflow = 'hidden';
@@ -505,56 +499,6 @@ function initPhoneLookup() {
   });
 }
 
-/* ------------------------------------------------------------
-   Geolocation (browser GPS — free, no API key)
-   ------------------------------------------------------------ */
-
-function initGeolocation() {
-  const btn = $('#btnGeo');
-  const label = $('#btnGeoLabel');
-  const status = $('#geoStatus');
-  const latIn = $('#o-lat');
-  const lngIn = $('#o-lng');
-  if (!btn) return;
-
-  if (!('geolocation' in navigator)) {
-    btn.disabled = true;
-    if (status) { status.textContent = 'Geolocation not available'; status.classList.add('error'); }
-    return;
-  }
-
-  btn.addEventListener('click', () => {
-    btn.classList.add('is-loading');
-    btn.classList.remove('is-success');
-    if (label)  label.textContent = 'Getting your location…';
-    if (status) { status.textContent = ''; status.classList.remove('error'); }
-
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        btn.classList.remove('is-loading');
-        btn.classList.add('is-success');
-        const lat = pos.coords.latitude.toFixed(6);
-        const lng = pos.coords.longitude.toFixed(6);
-        if (latIn) latIn.value = lat;
-        if (lngIn) lngIn.value = lng;
-        if (label)  label.textContent = 'Location captured';
-        if (status) status.textContent = `±${Math.round(pos.coords.accuracy)}m accuracy`;
-      },
-      (err) => {
-        btn.classList.remove('is-loading');
-        if (label) label.textContent = 'Use my current location';
-        if (status) {
-          status.classList.add('error');
-          status.textContent = err.code === err.PERMISSION_DENIED
-            ? 'Permission denied. Please allow location in your browser settings.'
-            : 'Could not get location. Please type your address.';
-        }
-      },
-      { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 }
-    );
-  });
-}
-
 function collectOrder() {
   const qty = parseInt($('#o-qty').value || '1', 10);
   const method = $('#m-delivery').checked ? 'Delivery' : 'Pickup';
@@ -577,8 +521,6 @@ function collectOrder() {
     method,
     city:     method === 'Delivery' ? ($('#o-city').value || '').trim() : '',
     address:  method === 'Delivery' ? $('#o-address').value.trim() : '',
-    lat:      method === 'Delivery' ? ($('#o-lat')?.value || '').trim() : '',
-    lng:      method === 'Delivery' ? ($('#o-lng')?.value || '').trim() : '',
     preferred_time: ($('#o-time').value || '').trim(),
     preferred_time_pretty: prettyTime(($('#o-time').value || '').trim()),
     date:     rawDate ? prettyDate(rawDate) : '',
@@ -617,9 +559,6 @@ function buildWaMessage(o) {
   if (o.method === 'Delivery') {
     if (o.address) lines.push(`*Address:* ${o.address}`);
     if (o.city)    lines.push(`*City:* ${o.city}`);
-    if (o.lat && o.lng) {
-      lines.push(`*Pin location:* https://maps.google.com/?q=${o.lat},${o.lng}`);
-    }
   }
   lines.push(`*Date:* ${o.date}`);
   if (o.preferred_time_pretty) {
@@ -717,6 +656,5 @@ document.addEventListener('DOMContentLoaded', () => {
   Modal.init();
   initOrderForm();
   initPhoneLookup();
-  initGeolocation();
   initSubmit();
 });

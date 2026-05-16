@@ -957,33 +957,6 @@ section { padding-block: clamp(var(--space-16), 10vw, var(--space-32)); position
 }
 .prefill-hint svg { color: var(--brass-500); flex-shrink: 0; }
 
-/* Geolocation row */
-.geo-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-top: 8px;
-}
-.btn-geo {
-  padding: 8px 14px;
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: none;
-  letter-spacing: 0;
-  color: var(--ink-700, #1F4F4D);
-  background: transparent;
-}
-.btn-geo svg { color: var(--brass-600); }
-.btn-geo.is-success { background: rgba(45, 95, 93, 0.1); border-color: var(--teal-600, #2D5F5D); }
-.btn-geo.is-success svg { color: var(--teal-600, #2D5F5D); }
-.btn-geo.is-loading { opacity: 0.7; pointer-events: none; }
-.geo-status {
-  font-size: 12px;
-  color: var(--ink-500);
-}
-.geo-status.error { color: #b91c1c; }
-
 /* delivery toggle */
 .toggle-group {
   display: grid;
