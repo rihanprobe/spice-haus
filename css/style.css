@@ -1073,6 +1073,11 @@ section { padding-block: clamp(var(--space-16), 10vw, var(--space-32)); position
   flex-shrink: 0;
   margin-top: 2px;
 }
+.charity-note .charity-hands {
+  width: 34px;
+  height: 34px;
+  margin-top: 0;
+}
 .charity-note strong { color: var(--brass, #C99A4B); font-weight: 700; }
 .charity-note em { font-style: italic; opacity: 0.9; color: var(--cream-50, #FAF6EE); }
 

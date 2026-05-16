@@ -375,21 +375,22 @@
           <p>Beef AED 185 · Mutton AED 205 · per kg, slow-cooked just for you</p>
         </div>
 
-        <!-- Charity seal: 10% of every order goes to feeding the hungry -->
-        <div class="charity-seal" aria-label="10 percent of every order is donated to feeding the hungry" title="10% of every order is donated to feeding the hungry">
+        <!-- Charity seal: 10% of every order goes to those in need -->
+        <div class="charity-seal" aria-label="10 percent of every order is donated to those in need" title="10% of every order is donated to those in need">
           <svg viewBox="0 0 200 200" width="110" height="110" aria-hidden="true">
             <defs>
               <path id="sealCircle" d="M 100, 100 m -78, 0 a 78,78 0 1,1 156,0 a 78,78 0 1,1 -156,0"/>
             </defs>
-            <circle cx="100" cy="100" r="95" fill="none" stroke="currentColor" stroke-width="2"/>
-            <circle cx="100" cy="100" r="86" fill="none" stroke="currentColor" stroke-width="1" stroke-dasharray="2 4"/>
-            <text fill="currentColor" font-size="13" font-weight="700" letter-spacing="3">
-              <textPath href="#sealCircle" startOffset="0%">EVERY BITE FEEDS ANOTHER · 10% TO CHARITY · </textPath>
+            <!-- Filled teal medallion so brass text reads on top -->
+            <circle cx="100" cy="100" r="95" fill="#1F4F4D" stroke="#C99A4B" stroke-width="2"/>
+            <circle cx="100" cy="100" r="86" fill="none" stroke="#C99A4B" stroke-width="1" stroke-dasharray="2 4"/>
+            <text fill="#E9C788" font-size="13" font-weight="700" letter-spacing="3">
+              <textPath href="#sealCircle" startOffset="0%">10% FOR THOSE IN NEED · EVERY ORDER GIVES BACK · </textPath>
             </text>
-            <g transform="translate(100,108)" fill="currentColor">
+            <g transform="translate(100,108)" fill="#E9C788">
               <text text-anchor="middle" font-size="32" font-weight="800" y="-8">10%</text>
-              <text text-anchor="middle" font-size="9" font-weight="600" letter-spacing="2" y="12">FOR THOSE</text>
-              <text text-anchor="middle" font-size="9" font-weight="600" letter-spacing="2" y="24">IN NEED</text>
+              <text text-anchor="middle" font-size="9" font-weight="600" letter-spacing="2" y="12">GIVES BACK</text>
+              <text text-anchor="middle" font-size="9" font-weight="600" letter-spacing="2" y="24">TO THE NEEDY</text>
             </g>
           </svg>
         </div>
@@ -490,8 +491,18 @@
           <div class="order-summary-row" id="sum-delivery-row" hidden><span>Delivery fee</span><span id="sum-delivery">AED 25</span></div>
           <div class="order-summary-row total"><span>Total</span><span>AED <span id="sum-total">185</span></span></div>
           <div class="charity-note" aria-live="polite">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>
-            <span><strong>AED <span id="charity-amount">18.50</span></strong> from this order will feed someone in need. <em>Every bite, a small good deed.</em></span>
+            <!-- Two hands giving / receiving — represents all forms of charity, not only food -->
+            <svg class="charity-hands" width="34" height="34" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <!-- Giving hand (left, palm up) -->
+              <path d="M4 38 C 4 35, 6 33, 9 33 L 18 33 C 21 33, 23 31, 23 28 L 23 22 C 23 19.5, 25 17.5, 27.5 17.5 C 30 17.5, 32 19.5, 32 22 L 32 30"/>
+              <path d="M4 38 L 4 46 C 4 49, 6 51, 9 51 L 20 51"/>
+              <!-- Receiving hand (right, palm up, mirrored) -->
+              <path d="M60 38 C 60 35, 58 33, 55 33 L 46 33 C 43 33, 41 31, 41 28 L 41 22 C 41 19.5, 39 17.5, 36.5 17.5 C 34 17.5, 32 19.5, 32 22 L 32 30"/>
+              <path d="M60 38 L 60 46 C 60 49, 58 51, 55 51 L 44 51"/>
+              <!-- Heart between the hands — universal symbol of giving -->
+              <path d="M32 14 C 30 11, 26 11, 25 14 C 24 16.5, 26 19, 32 23 C 38 19, 40 16.5, 39 14 C 38 11, 34 11, 32 14 Z" fill="currentColor" stroke="none" opacity="0.9"/>
+            </svg>
+            <span><strong>AED <span id="charity-amount">18.50</span></strong> from this order goes to someone in need — food, shelter, medicine, or whatever helps most. <em>Every order, a small good deed.</em></span>
           </div>
         </div>
       </form>

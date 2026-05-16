@@ -501,7 +501,7 @@ function buildWaMessage(o) {
   if (o.method === 'Delivery') lines.push(`*Delivery fee:* AED ${o.delivery_fee}`);
   lines.push(`*Total:* AED ${o.total}`);
   const charity = (Number(o.subtotal) * 0.10).toFixed(2);
-  lines.push(`*Charity (10% of food):* AED ${charity} — thank you for feeding someone in need`);
+  lines.push(`*Charity (10% of food):* AED ${charity} — going to someone in need (food, shelter, medicine, or whatever helps most). Thank you for giving back.`);
   lines.push(``);
   lines.push(`Please confirm my order. Thank you.`);
   return lines.join('\n');
