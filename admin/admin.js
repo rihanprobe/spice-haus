@@ -128,7 +128,7 @@ function renderOrders() {
       </div>
       <div class="row-meta">${escapeHtml(o.meat)} ${o.quantity}kg · ${escapeHtml(o.method)}${o.city ? ' · ' + escapeHtml(o.city) : ''}</div>
       <div class="row-foot">
-        <span class="row-meta">${escapeHtml(o.date)} · ${escapeHtml(o.time || '')}</span>
+        <span class="row-meta">${escapeHtml(cleanDate(o.date))}${o.time ? ' · ' + escapeHtml(cleanTime(o.time)) : ''}</span>
         <span class="row-amount">AED ${fmt(o.total)}</span>
       </div>
     </div>
@@ -144,11 +144,13 @@ function openOrder(orderNumber) {
   $('#om-title').textContent = (o.first_name + ' ' + o.last_name).trim() || o.order_number;
   $('#om-sub').textContent   = o.order_number + ' · ' + o.phone;
 
+  const cleanedDate = cleanDate(o.date);
+  const cleanedTime = cleanTime(o.time);
   const kv = [
     ['Meat',      `${o.meat} · ${o.quantity}kg @ AED ${fmt(o.price_per_kg)}/kg`],
     ['Method',    o.method + (o.city ? ' · ' + o.city : '')],
     ['Address',   o.address || '—'],
-    ['When',      `${o.date} · ${o.time || ''}`.trim()],
+    ['When',      `${cleanedDate}${cleanedTime ? ' · ' + cleanedTime : ''}`.trim() || '—'],
     ['Notes',     o.notes || '—'],
     ['Delivery fee', 'AED ' + fmt(o.delivery_fee)],
     ['Total',     'AED ' + fmt(o.total)]
@@ -190,8 +192,33 @@ function openWhatsApp(phone, message) {
 function greet(o)  { return `Hi ${o.first_name || 'there'},`; }
 function bizSig()  { return `\n\n— ${CONFIG.BIZ_NAME}`; }
 
+/* Strip any raw "Date" / "GMT" / Arabic timezone tail that may sneak through
+   if the Sheet returned a Date object. Also remove "(توقيت الخليج)" tails. */
+function cleanDate(s) {
+  if (!s) return '';
+  s = String(s);
+  // Pattern: "Mon May 18 2026 04:00:00 GMT+0400 (توقيت الخليج)"
+  const d = new Date(s);
+  if (!isNaN(d) && /GMT|\d{4}/.test(s) && /\(/.test(s)) {
+    return d.toLocaleDateString('en-GB', { timeZone: 'Asia/Dubai', weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
+  }
+  // Strip stray "GMT+0400 (توقيت الخليج)" tails just in case
+  return s.replace(/\s*GMT[^()]*\([^)]*\)\s*$/, '').trim();
+}
+function cleanTime(s) {
+  if (!s) return '';
+  s = String(s);
+  const d = new Date(s);
+  if (!isNaN(d) && /GMT|\d{4}/.test(s) && /\(/.test(s)) {
+    return d.toLocaleTimeString('en-GB', { timeZone: 'Asia/Dubai', hour: '2-digit', minute: '2-digit', hour12: true });
+  }
+  return s.replace(/\s*GMT[^()]*\([^)]*\)\s*$/, '').trim();
+}
+
 function confirmTemplate(o) {
-  return `${greet(o)}\n\nThanks for your order ${o.order_number}!\n\n• ${o.meat} — ${o.quantity}kg\n• ${o.method}${o.city ? ' to ' + o.city : ''}\n• ${o.date} at ${o.time || ''}\n• Total: AED ${fmt(o.total)}\n\nWe'll confirm shortly.${bizSig()}`;
+  const date = cleanDate(o.date);
+  const time = cleanTime(o.time);
+  return `${greet(o)}\n\nWe've received your payment — thank you! 🙏\n\nYour order *${o.order_number}* is confirmed:\n\n• ${o.meat} — ${o.quantity}kg\n• ${o.method}${o.city ? ' to ' + o.city : ''}\n• ${date}${time ? ' at ' + time : ''}\n• Total: AED ${fmt(o.total)}\n\nWe'll start your slow-cooked bhuna and message you the moment it's ready.${bizSig()}`;
 }
 function paymentTemplate(o) {
   return `${greet(o)}\n\nTo confirm your order ${o.order_number} (AED ${fmt(o.total)}), please transfer the amount to:\n\n🏦 *The National Bank of Ras Al Khaimah (P.S.C.)*\nName: Mohamed Rihan Abdul Karim Rihan Abdul Karim Chougle\nAccount: 0372011779001\nIBAN: AE74 0400 0003 7201 1779 001\nSWIFT: NRAKAEAK\n\nKindly share the payment screenshot once done — your bhuna will be on the way shortly.\n\nThank you 🙏${bizSig()}`;
@@ -200,7 +227,8 @@ function readyPickupTemplate(o) {
   return `${greet(o)}\n\nYour ${o.meat.toLowerCase()} bhuna (${o.quantity}kg) is ready for pickup.\n\nWe're open until 11 PM. See you soon!${bizSig()}`;
 }
 function outForDeliveryTemplate(o) {
-  return `${greet(o)}\n\nYour order ${o.order_number} is on the way to ${o.city || 'you'}. ETA in ~30 minutes.\n\nDriver will WhatsApp you on arrival.${bizSig()}`;
+  const time = cleanTime(o.time);
+  return `${greet(o)}\n\nYour order *${o.order_number}* is on the way to ${o.city || 'you'}${time ? ' for ' + time : ''}. ETA in ~30 minutes.\n\nDriver will WhatsApp you on arrival.${bizSig()}`;
 }
 function thankYouTemplate(o) {
   return `${greet(o)}\n\nHope you enjoyed your bhuna gosht. A reminder — 10% of every order goes back to those in need.\n\nIf you loved it, a quick reply or share on Instagram would mean the world. Order again any time at https://spicehaus.org${bizSig()}`;
