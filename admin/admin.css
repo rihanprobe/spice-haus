@@ -35,7 +35,8 @@ p  { margin: 0 0 12px; }
 code { background: rgba(31,79,77,0.08); padding: 1px 6px; border-radius: 4px; font-size: 0.85em; }
 
 /* --- Brand --- */
-.brand { display: flex; align-items: center; gap: 10px; }
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand > div { display: flex; flex-direction: column; justify-content: center; line-height: 1; }
 .brand .brand-mark { width: 48px; height: 48px; display: inline-block; }
 /* Brand logo tile: cream Spice Haus burger+flame on teal, brass-edged */
 .brand .brand-mark.logo-tile {
@@ -53,8 +54,8 @@ code { background: rgba(31,79,77,0.08); padding: 1px 6px; border-radius: 4px; fo
   -webkit-mask: url("../assets/logo-mark.svg") no-repeat center / contain;
           mask: url("../assets/logo-mark.svg") no-repeat center / contain;
 }
-.brand .brand-name { font-family: 'Fraunces', serif; font-weight: 700; font-size: 1.25rem; color: var(--teal-dark); line-height: 1; }
-.brand .brand-sub  { font-size: 0.7rem; letter-spacing: 0.18em; color: var(--brass); font-weight: 600; margin-top: 4px; }
+.brand .brand-name { font-family: 'Fraunces', serif; font-weight: 700; font-size: 1.3rem; color: var(--teal-dark); line-height: 1.05; }
+.brand .brand-sub  { font-size: 0.7rem; letter-spacing: 0.18em; color: var(--brass); font-weight: 600; margin-top: 5px; line-height: 1; }
 .brand.small .brand-mark { width: 40px; height: 40px; }
 .brand.small .brand-mark.logo-tile { border-radius: 9px; border-width: 1.25px; }
 .brand.small .brand-mark.logo-tile::before { inset: 6px 5px; }
