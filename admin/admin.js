@@ -235,7 +235,7 @@ function thankYouTemplate(o) {
   return `${greet(o)}\n\nHope you enjoyed your bhuna gosht. A reminder — 10% of every order goes back to those in need.\n\nIf you loved it, a quick reply or share on Instagram would mean the world. Order again any time at https://spicehaus.org${bizSig()}`;
 }
 function followUpTemplate(o) {
-  return `${greet(o)}\n\nIt's been a little while — fancy another slow-cooked bhuna this weekend? Same as last time (${o.meat} ${o.quantity}kg) or something new.\n\nOrder at https://spicehaus.org or just reply here.${bizSig()}`;
+  return `${greet(o)}\n\nA quick hello from our kitchen — we hope you and your family are doing well.\n\nNo occasion, just wanted to thank you again for trusting us with your last meal. It meant a lot.\n\nWhenever you'd like us to cook for you again, we're here.\n\nWarmly,\nSpice Haus`;
 }
 
 /* Custom message */
