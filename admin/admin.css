@@ -165,6 +165,8 @@ main#content { padding: 18px 16px; max-width: 700px; margin: 0 auto; }
 
 /* --- Modal --- */
 .modal { position: fixed; inset: 0; z-index: 100; display: grid; place-items: end center; }
+.modal[hidden] { display: none !important; }
+[hidden] { display: none !important; }
 .modal-overlay { position: absolute; inset: 0; background: rgba(31,79,77,0.5); }
 .modal-card {
   position: relative; background: var(--cream); width: 100%; max-width: 560px;
