@@ -483,19 +483,35 @@ function applyPrefill(data) {
 function initPhoneLookup() {
   const phone = $('#o-phone');
   if (!phone) return;
-  const trigger = () => {
-    clearTimeout(_lookupTimer);
-    _lookupTimer = setTimeout(async () => {
+  const spinner = $('#phoneSpinner');
+  const showSpinner = (on) => { if (spinner) spinner.hidden = !on; };
+
+  const runLookup = async () => {
+    const digits = (phone.value || '').replace(/\D/g, '');
+    if (digits.length < 9) return;          // wait for a plausible mobile number
+    if (digits === _lastLookupPhone) return;
+    showSpinner(true);
+    try {
       const result = await lookupByPhone(phone.value);
       if (result) applyPrefill(result);
-    }, 600);
+    } finally {
+      showSpinner(false);
+    }
   };
-  phone.addEventListener('blur', trigger);
+
+  // 1) Fast trigger: while typing, debounce 350ms once we have ≥9 digits
   phone.addEventListener('input', () => {
     // reset the prefill hint when the user changes the phone
     const hint = $('#prefillHint');
     if (hint && !hint.hidden) hint.hidden = true;
     _lastLookupPhone = '';
+    clearTimeout(_lookupTimer);
+    _lookupTimer = setTimeout(runLookup, 350);
+  });
+  // 2) Safety net: also lookup on blur (covers paste → tab out instantly)
+  phone.addEventListener('blur', () => {
+    clearTimeout(_lookupTimer);
+    runLookup();
   });
 }
 

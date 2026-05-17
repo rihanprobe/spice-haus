@@ -964,6 +964,25 @@ section { padding-block: clamp(var(--space-16), 10vw, var(--space-32)); position
 }
 .prefill-hint svg { color: var(--brass-500); flex-shrink: 0; }
 
+/* Phone input with inline spinner */
+.input-with-spinner { position: relative; }
+.input-with-spinner input { padding-right: 42px; }
+.input-spinner {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(45,95,93,0.18);
+  border-top-color: var(--brass-500, #C99A4B);
+  border-radius: 50%;
+  animation: phone-spin 0.7s linear infinite;
+  pointer-events: none;
+}
+.input-spinner[hidden] { display: none; }
+@keyframes phone-spin { to { transform: translateY(-50%) rotate(360deg); } }
+
 /* delivery toggle */
 .toggle-group {
   display: grid;
