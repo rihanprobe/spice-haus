@@ -96,7 +96,7 @@
       <div class="filters">
         <input type="search" id="orderSearch" placeholder="Search name or phone…" />
         <select id="orderStatusFilter">
-          <option value="">All statuses</option>
+          <option value="">All deliveries</option>
           <option value="New">New</option>
           <option value="Confirmed">Confirmed</option>
           <option value="Ready">Ready</option>
@@ -181,12 +181,26 @@
     <div class="modal-body">
       <div id="om-details" class="order-details"></div>
 
-      <label>Status</label>
-      <select id="om-status">
-        <option>New</option><option>Confirmed</option><option>Ready</option>
-        <option>Out for delivery</option><option>Delivered</option><option>Cancelled</option>
-      </select>
-      <button class="btn primary block" id="om-save-status">Update status</button>
+      <div class="status-grid">
+        <div>
+          <label>Payment status</label>
+          <select id="om-payment-status">
+            <option>Pending</option><option>Received</option><option>Refunded</option>
+          </select>
+        </div>
+        <div>
+          <label>Delivery status</label>
+          <select id="om-delivery-status">
+            <option>New</option><option>Confirmed</option><option>Ready</option>
+            <option>Out for delivery</option><option>Delivered</option><option>Cancelled</option>
+          </select>
+        </div>
+      </div>
+
+      <label>Payment reference <span class="hint">(transaction ID / last 4 digits)</span></label>
+      <input type="text" id="om-payment-ref" placeholder="e.g. TXN 8472 / RAK ref 1234" />
+
+      <button class="btn primary block" id="om-save-status">Update order</button>
 
       <h4>WhatsApp templates</h4>
       <div class="wa-templates" id="om-templates"></div>

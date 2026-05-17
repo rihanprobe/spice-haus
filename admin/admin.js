@@ -108,7 +108,8 @@ function renderOrders() {
   const q = ($('#orderSearch').value || '').trim().toLowerCase();
   const f = $('#orderStatusFilter').value;
   const list = state.orders.filter(o => {
-    if (f && o.status !== f) return false;
+    const ds = o.delivery_status || o.status || 'New';
+    if (f && ds !== f) return false;
     if (!q) return true;
     const hay = (o.first_name + ' ' + o.last_name + ' ' + o.phone + ' ' + o.order_number).toLowerCase();
     return hay.indexOf(q) >= 0;
@@ -117,22 +118,28 @@ function renderOrders() {
     $('#ordersList').innerHTML = '<div class="empty">No orders match.</div>';
     return;
   }
-  $('#ordersList').innerHTML = list.map(o => `
+  $('#ordersList').innerHTML = list.map(o => {
+    const pay = o.payment_status || 'Pending';
+    const del = o.delivery_status || o.status || 'New';
+    return `
     <div class="row" data-order="${escapeHtml(o.order_number)}">
       <div class="row-top">
         <div>
           <div class="row-name">${escapeHtml(o.first_name + ' ' + o.last_name).trim() || '—'}</div>
           <div class="row-meta">${escapeHtml(o.order_number)} · ${escapeHtml(o.phone)}</div>
         </div>
-        <span class="pill ${cssClass(o.status)}">${escapeHtml(o.status || 'New')}</span>
+        <div class="pill-stack">
+          <span class="pill pay-${cssClass(pay)}">💰 ${escapeHtml(pay)}</span>
+          <span class="pill ${cssClass(del)}">🚚 ${escapeHtml(del)}</span>
+        </div>
       </div>
       <div class="row-meta">${escapeHtml(o.meat)} ${o.quantity}kg · ${escapeHtml(o.method)}${o.city ? ' · ' + escapeHtml(o.city) : ''}</div>
       <div class="row-foot">
         <span class="row-meta">${escapeHtml(cleanDate(o.date))}${o.time ? ' · ' + escapeHtml(cleanTime(o.time)) : ''}</span>
         <span class="row-amount">AED ${fmt(o.total)}</span>
       </div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
   $$('#ordersList .row').forEach(r => r.addEventListener('click', () => openOrder(r.dataset.order)));
 }
 
@@ -159,7 +166,9 @@ function openOrder(orderNumber) {
     `<div class="row-kv"><b>${k}</b><span>${escapeHtml(v)}</span></div>`
   ).join('');
 
-  $('#om-status').value = o.status || 'New';
+  $('#om-payment-status').value  = o.payment_status  || 'Pending';
+  $('#om-payment-ref').value     = o.payment_ref     || '';
+  $('#om-delivery-status').value = o.delivery_status || o.status || 'New';
 
   // Render WhatsApp templates
   const tpls = [
@@ -243,14 +252,31 @@ function bindOrderModal() {
   $('#om-save-status').addEventListener('click', async () => {
     const o = state.currentOrder;
     if (!o) return;
-    const status = $('#om-status').value;
+    const payment_status  = $('#om-payment-status').value;
+    const payment_ref     = ($('#om-payment-ref').value || '').trim();
+    const delivery_status = $('#om-delivery-status').value;
+    const btn = $('#om-save-status');
+    btn.disabled = true; const oldLabel = btn.textContent; btn.textContent = 'Saving…';
     try {
-      await apiPost({ action: 'admin_update_status', order_number: o.order_number, status });
-      o.status = status;
-      toast('Status updated');
+      await apiPost({
+        action: 'admin_update_status',
+        order_number: o.order_number,
+        payment_status,
+        payment_ref,
+        delivery_status
+      });
+      o.payment_status  = payment_status;
+      o.payment_ref     = payment_ref;
+      o.delivery_status = delivery_status;
+      o.status          = delivery_status; // keep legacy field in sync
+      toast('Order updated');
       renderOrders();
+      // Refresh Today KPIs since pending count may change
+      refreshToday();
     } catch (e) {
       toast('Update failed: ' + e.message);
+    } finally {
+      btn.disabled = false; btn.textContent = oldLabel;
     }
   });
 

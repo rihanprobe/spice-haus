@@ -142,6 +142,26 @@ main#content { padding: 18px 16px; max-width: 700px; margin: 0 auto; }
 .pill.Delivered { background: #d1fae5; color: #065f46; }
 .pill.Cancelled { background: #fee2e2; color: #991b1b; }
 
+/* Payment pills */
+.pill.pay-Pending  { background: rgba(201,154,75,0.22); color: #8a6520; border: 1px solid rgba(201,154,75,0.45); }
+.pill.pay-Received { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
+.pill.pay-Refunded { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+
+.pill-stack {
+  display: flex; flex-direction: column; gap: 4px; align-items: flex-end;
+}
+.pill-stack .pill { white-space: nowrap; }
+
+/* Status grid in order modal */
+.status-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 4px;
+}
+.status-grid label { font-size: 0.78rem; }
+
+.hint {
+  font-weight: 400; color: var(--ink-500); font-size: 0.74rem;
+}
+
 .empty {
   text-align: center; padding: 36px 12px; color: var(--ink-500);
   background: var(--card); border-radius: 14px; border: 1px dashed var(--line);
