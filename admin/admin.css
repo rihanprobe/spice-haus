@@ -36,14 +36,19 @@ code { background: rgba(31,79,77,0.08); padding: 1px 6px; border-radius: 4px; fo
 
 /* --- Brand --- */
 .brand { display: flex; align-items: center; gap: 10px; }
-.brand .brand-mark {
-  width: 44px; height: 44px; object-fit: contain; padding: 2px 0 4px;
-  /* Logo PNG is white — recolor to brand teal #1F4F4D on light backgrounds */
-  filter: brightness(0) saturate(100%) invert(26%) sepia(36%) saturate(620%) hue-rotate(127deg) brightness(94%) contrast(89%);
+.brand .brand-mark { width: 44px; height: 44px; object-fit: contain; }
+/* Favicon-style logo tile: white burger+flame on teal, with brass border */
+.brand .brand-mark.logo-tile {
+  background: var(--teal-dark);
+  border: 1.5px solid var(--brass);
+  border-radius: 10px;
+  padding: 4px;
+  box-shadow: 0 1px 3px rgba(31,79,77,0.15);
 }
 .brand .brand-name { font-family: 'Fraunces', serif; font-weight: 700; font-size: 1.25rem; color: var(--teal-dark); line-height: 1; }
 .brand .brand-sub  { font-size: 0.7rem; letter-spacing: 0.18em; color: var(--brass); font-weight: 600; margin-top: 4px; }
-.brand.small .brand-mark { width: 32px; height: 32px; }
+.brand.small .brand-mark { width: 36px; height: 36px; }
+.brand.small .brand-mark.logo-tile { border-radius: 8px; padding: 3px; border-width: 1.25px; }
 .brand.small .brand-name { font-size: 1rem; }
 .brand.small .brand-sub { font-size: 0.62rem; margin-top: 2px; }
 
