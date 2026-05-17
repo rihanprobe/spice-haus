@@ -438,71 +438,12 @@ function prettyTime(hhmm) {
    Phone lookup (auto-fill returning customer details)
    ------------------------------------------------------------ */
 
-let _lookupTimer = null;
-let _lastLookupPhone = '';
-
-async function lookupByPhone(rawPhone) {
-  if (!CONFIG.SHEET_WEBHOOK_URL) return null;
-  const digits = (rawPhone || '').replace(/\D/g, '');
-  if (digits.length < 7) return null;
-  if (digits === _lastLookupPhone) return null;
-  _lastLookupPhone = digits;
-  try {
-    const url = CONFIG.SHEET_WEBHOOK_URL + '?action=lookup&phone=' + encodeURIComponent(rawPhone);
-    const res = await fetch(url, { method: 'GET', redirect: 'follow' });
-    const data = await res.json().catch(() => ({}));
-    return data && data.ok ? data : null;
-  } catch (e) {
-    return null;
-  }
-}
-
-function applyPrefill(data) {
-  // Privacy: we no longer pre-fill name/address from a phone lookup, because
-  // anyone could type someone else's number and see their stored details.
-  // We just show a friendly "welcome back" greeting (no personal info).
-  if (!data || !data.found) return;
-  const hint = $('#prefillHint');
-  const hintText = $('#prefillHintText');
-  if (hint) hint.hidden = false;
-  if (hintText) {
-    hintText.textContent = 'Welcome back to Spice Haus — thanks for ordering with us again.';
-  }
-}
-
+/* Phone lookup REMOVED for privacy/security.
+ * Earlier versions called the webhook with ?action=lookup&phone=XXXX which
+ * meant anyone could harvest customer details. We now treat phone as input-only. */
 function initPhoneLookup() {
-  const phone = $('#o-phone');
-  if (!phone) return;
   const spinner = $('#phoneSpinner');
-  const showSpinner = (on) => { if (spinner) spinner.hidden = !on; };
-
-  const runLookup = async () => {
-    const digits = (phone.value || '').replace(/\D/g, '');
-    if (digits.length < 9) return;          // wait for a plausible mobile number
-    if (digits === _lastLookupPhone) return;
-    showSpinner(true);
-    try {
-      const result = await lookupByPhone(phone.value);
-      if (result) applyPrefill(result);
-    } finally {
-      showSpinner(false);
-    }
-  };
-
-  // 1) Fast trigger: while typing, debounce 350ms once we have ≥9 digits
-  phone.addEventListener('input', () => {
-    // reset the prefill hint when the user changes the phone
-    const hint = $('#prefillHint');
-    if (hint && !hint.hidden) hint.hidden = true;
-    _lastLookupPhone = '';
-    clearTimeout(_lookupTimer);
-    _lookupTimer = setTimeout(runLookup, 350);
-  });
-  // 2) Safety net: also lookup on blur (covers paste → tab out instantly)
-  phone.addEventListener('blur', () => {
-    clearTimeout(_lookupTimer);
-    runLookup();
-  });
+  if (spinner) spinner.hidden = true;
 }
 
 function collectOrder() {

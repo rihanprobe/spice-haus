@@ -15,8 +15,52 @@ let state = {
   orders: [],
   expenses: [],
   today: null,
-  currentOrder: null
+  currentOrder: null,
+  quickFilter: 'all'   // 'all' | 'unpaid' | 'today' | 'ready' | 'out'
 };
+
+/* Quick-filter predicate */
+function matchesQuickFilter(o, qf) {
+  const pay = o.payment_status || 'Pending';
+  const del = o.delivery_status || o.status || 'New';
+  if (qf === 'all') return true;
+  if (qf === 'unpaid') return pay !== 'Received' && del !== 'Cancelled';
+  if (qf === 'today') {
+    const today = todayISO();
+    const orderDate = isoFromDateField(o.date);
+    return orderDate === today && del !== 'Cancelled';
+  }
+  if (qf === 'ready') return del === 'Ready';
+  if (qf === 'out')   return del === 'Out for delivery';
+  return true;
+}
+
+/* Parse various date formats from the sheet into YYYY-MM-DD (Dubai time) */
+function isoFromDateField(s) {
+  if (!s) return '';
+  s = String(s);
+  // Try ISO first
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  const d = new Date(s);
+  if (isNaN(d)) return '';
+  const opts = { timeZone: 'Asia/Dubai', year: 'numeric', month: '2-digit', day: '2-digit' };
+  return new Intl.DateTimeFormat('en-CA', opts).format(d);
+}
+
+function updateQuickFilterCounts() {
+  const counts = { all: 0, unpaid: 0, today: 0, ready: 0, out: 0 };
+  state.orders.forEach(o => {
+    counts.all++;
+    if (matchesQuickFilter(o, 'unpaid')) counts.unpaid++;
+    if (matchesQuickFilter(o, 'today'))  counts.today++;
+    if (matchesQuickFilter(o, 'ready'))  counts.ready++;
+    if (matchesQuickFilter(o, 'out'))    counts.out++;
+  });
+  Object.keys(counts).forEach(k => {
+    const el = document.querySelector(`[data-qf-count="${k}"]`);
+    if (el) el.textContent = counts[k];
+  });
+}
 
 /* ---------- Auth ---------- */
 function loadKey() {
@@ -105,9 +149,11 @@ async function refreshOrders() {
 }
 
 function renderOrders() {
+  updateQuickFilterCounts();
   const q = ($('#orderSearch').value || '').trim().toLowerCase();
   const f = $('#orderStatusFilter').value;
   const list = state.orders.filter(o => {
+    if (!matchesQuickFilter(o, state.quickFilter)) return false;
     const ds = o.delivery_status || o.status || 'New';
     if (f && ds !== f) return false;
     if (!q) return true;
@@ -252,20 +298,28 @@ function openOrder(orderNumber) {
   $('#om-payment-ref').value     = o.payment_ref     || '';
   $('#om-delivery-status').value = o.delivery_status || o.status || 'New';
 
-  // Render WhatsApp templates
+  // Render WhatsApp templates. Each entry: [label, message, gateFn(o)] where gateFn
+  // returns a string warning if the template shouldn't be sent yet (null = OK).
+  const paid = (o.payment_status === 'Received');
   const tpls = [
-    ['Confirm order', confirmTemplate(o)],
-    ['Ask payment',   paymentTemplate(o)],
-    ['Ready for pickup', readyPickupTemplate(o)],
-    ['Out for delivery', outForDeliveryTemplate(o)],
-    ['Delivered — thank you', thankYouTemplate(o)],
-    ['Follow-up next week', followUpTemplate(o)]
+    ['Confirm order',        confirmTemplate(o),         () => paid ? null : 'Payment is still Pending. Are you sure you want to send the confirmation (which thanks the customer for paying)?'],
+    ['Ask payment',          paymentTemplate(o),         () => null],
+    ['Ready for pickup',     readyPickupTemplate(o),     () => paid ? null : 'This customer has not paid yet. Send anyway?'],
+    ['Out for delivery',     outForDeliveryTemplate(o),  () => paid ? null : 'This customer has not paid yet. Send anyway?'],
+    ['Delivered — thank you', thankYouTemplate(o),        () => null],
+    ['Follow-up next week',  followUpTemplate(o),        () => null]
   ];
-  $('#om-templates').innerHTML = tpls.map(([label, msg], i) =>
-    `<button type="button" class="btn ghost" data-msg-i="${i}">${label}</button>`
-  ).join('');
+  $('#om-templates').innerHTML = tpls.map(([label, msg, gateFn], i) => {
+    const blocked = (i === 0) && !paid;  // Confirm order gets a soft-disabled look when unpaid
+    const cls = 'btn ghost' + (blocked ? ' tpl-gated' : '');
+    const title = blocked ? 'Payment still pending — click to override' : '';
+    return `<button type="button" class="${cls}" data-msg-i="${i}" title="${title}">${label}${blocked ? ' 🔒' : ''}</button>`;
+  }).join('');
   $$('#om-templates .btn').forEach(b => b.addEventListener('click', () => {
     const i = parseInt(b.dataset.msgI, 10);
+    const gate = tpls[i][2];
+    const warn = gate ? gate() : null;
+    if (warn && !window.confirm(warn)) return;
     openWhatsApp(o.phone, tpls[i][1]);
   }));
 
@@ -550,6 +604,18 @@ function init() {
   // Order filters
   $('#orderSearch').addEventListener('input', renderOrders);
   $('#orderStatusFilter').addEventListener('change', renderOrders);
+
+  // Quick-filter chips
+  const qf = $('#quickFilters');
+  if (qf) {
+    qf.addEventListener('click', (e) => {
+      const btn = e.target.closest('.qf-btn');
+      if (!btn) return;
+      state.quickFilter = btn.dataset.qf;
+      $$('#quickFilters .qf-btn').forEach(b => b.classList.toggle('active', b === btn));
+      renderOrders();
+    });
+  }
 
   bindModalClose();
   bindExpenseForm();

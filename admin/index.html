@@ -93,6 +93,13 @@
     <!-- ORDERS -->
     <section data-tab="orders" class="tab" hidden>
       <h2>Orders</h2>
+      <div class="quick-filters" id="quickFilters">
+        <button type="button" class="qf-btn active" data-qf="all">All <span class="qf-count" data-qf-count="all">0</span></button>
+        <button type="button" class="qf-btn" data-qf="unpaid">💰 Unpaid <span class="qf-count" data-qf-count="unpaid">0</span></button>
+        <button type="button" class="qf-btn" data-qf="today">📅 Today <span class="qf-count" data-qf-count="today">0</span></button>
+        <button type="button" class="qf-btn" data-qf="ready">🍲 Ready <span class="qf-count" data-qf-count="ready">0</span></button>
+        <button type="button" class="qf-btn" data-qf="out">🚚 Out <span class="qf-count" data-qf-count="out">0</span></button>
+      </div>
       <div class="filters">
         <input type="search" id="orderSearch" placeholder="Search name or phone…" />
         <select id="orderStatusFilter">
