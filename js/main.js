@@ -458,25 +458,15 @@ async function lookupByPhone(rawPhone) {
 }
 
 function applyPrefill(data) {
+  // Privacy: we no longer pre-fill name/address from a phone lookup, because
+  // anyone could type someone else's number and see their stored details.
+  // We just show a friendly "welcome back" greeting (no personal info).
   if (!data || !data.found) return;
-  const fn = $('#o-first-name');
-  const ln = $('#o-last-name');
-  const addr = $('#o-address');
-  const city = $('#o-city');
-  // Only fill empty fields so we don't clobber what the user just typed.
-  if (fn && !fn.value && data.first_name) fn.value = data.first_name;
-  if (ln && !ln.value && data.last_name)  ln.value = data.last_name;
-  if (addr && !addr.value && data.address) addr.value = data.address;
-  if (city && !city.value && data.city)    city.value = data.city;
   const hint = $('#prefillHint');
   const hintText = $('#prefillHintText');
   if (hint) hint.hidden = false;
   if (hintText) {
-    const fname = (data.first_name || '').split(' ')[0] || 'there';
-    const orderCount = data.previous_orders_count || 0;
-    hintText.textContent = orderCount > 1
-      ? `Welcome back, ${fname} — we filled in your last details (order #${orderCount + 1}). Edit anything you like.`
-      : `Welcome back, ${fname} — we filled in your last details. Edit anything you like.`;
+    hintText.textContent = 'Welcome back to Spice Haus — thanks for ordering with us again.';
   }
 }
 
