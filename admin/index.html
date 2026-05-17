@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Spice Haus — Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./admin.css" />
+</head>
+<body>
+
+<!-- LOGIN GATE -->
+<div id="loginScreen" class="login">
+  <div class="login-card">
+    <div class="brand">
+      <img src="../assets/logo-burger.png" alt="" class="brand-mark" />
+      <div>
+        <div class="brand-name">Spice Haus</div>
+        <div class="brand-sub">ADMIN</div>
+      </div>
+    </div>
+    <h1>Sign in</h1>
+    <p class="muted">Enter the admin password to continue.</p>
+    <form id="loginForm" autocomplete="off">
+      <label for="adminPwd">Password</label>
+      <input type="password" id="adminPwd" required autocomplete="current-password" />
+      <div class="form-error" id="loginErr" hidden></div>
+      <button type="submit" class="btn primary block">Sign in</button>
+    </form>
+    <p class="muted small">Lost password? Edit <code>ADMIN_KEY</code> in your Apps Script.</p>
+  </div>
+</div>
+
+<!-- APP SHELL -->
+<div id="appShell" hidden>
+  <header class="topbar">
+    <div class="brand small">
+      <img src="../assets/logo-burger.png" alt="" class="brand-mark" />
+      <div>
+        <div class="brand-name">Spice Haus</div>
+        <div class="brand-sub">ADMIN</div>
+      </div>
+    </div>
+    <button id="logoutBtn" class="btn ghost small">Sign out</button>
+  </header>
+
+  <main id="content">
+    <!-- TODAY -->
+    <section data-tab="today" class="tab">
+      <h2>Today</h2>
+      <p class="muted" id="todayDate"></p>
+
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-label">Orders today</div>
+          <div class="stat-value" id="kpiOrders">—</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Revenue</div>
+          <div class="stat-value">AED <span id="kpiRevenue">—</span></div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Expenses</div>
+          <div class="stat-value">AED <span id="kpiExpenses">—</span></div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Net profit</div>
+          <div class="stat-value">AED <span id="kpiNet">—</span></div>
+        </div>
+        <div class="stat span-2">
+          <div class="stat-label">Charity (10%)</div>
+          <div class="stat-value">AED <span id="kpiCharity">—</span></div>
+        </div>
+        <div class="stat span-2">
+          <div class="stat-label">Pending action</div>
+          <div class="stat-value"><span id="kpiPending">—</span> orders</div>
+        </div>
+      </div>
+
+      <div class="quick-add">
+        <h3>Quick add</h3>
+        <div class="quick-buttons">
+          <button class="btn ghost" data-go="expenses">+ Expense</button>
+          <a class="btn ghost" href="/#order" target="_blank">+ Order (public form)</a>
+          <button class="btn ghost" data-go="orders">View orders</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ORDERS -->
+    <section data-tab="orders" class="tab" hidden>
+      <h2>Orders</h2>
+      <div class="filters">
+        <input type="search" id="orderSearch" placeholder="Search name or phone…" />
+        <select id="orderStatusFilter">
+          <option value="">All statuses</option>
+          <option value="New">New</option>
+          <option value="Confirmed">Confirmed</option>
+          <option value="Ready">Ready</option>
+          <option value="Out for delivery">Out for delivery</option>
+          <option value="Delivered">Delivered</option>
+          <option value="Cancelled">Cancelled</option>
+        </select>
+      </div>
+      <div id="ordersList" class="list"></div>
+    </section>
+
+    <!-- EXPENSES -->
+    <section data-tab="expenses" class="tab" hidden>
+      <div class="tab-head">
+        <h2>Expenses</h2>
+        <button id="newExpenseBtn" class="btn primary small">+ Add</button>
+      </div>
+      <div id="expensesList" class="list"></div>
+    </section>
+  </main>
+
+  <nav class="tabbar">
+    <button class="tab-btn active" data-go="today"><span>Today</span></button>
+    <button class="tab-btn"        data-go="orders"><span>Orders</span></button>
+    <button class="tab-btn"        data-go="expenses"><span>Expenses</span></button>
+  </nav>
+</div>
+
+<!-- Expense modal -->
+<div id="expenseModal" class="modal" hidden>
+  <div class="modal-overlay" data-close-modal></div>
+  <div class="modal-card">
+    <header class="modal-head">
+      <div>
+        <h3>Add expense</h3>
+        <p class="muted small">Saves to your Google Sheet. Receipt photo is uploaded to Google Drive.</p>
+      </div>
+      <button class="modal-close" data-close-modal aria-label="Close">✕</button>
+    </header>
+    <form id="expenseForm" class="modal-body">
+      <div class="form-error" id="expenseErr" hidden></div>
+
+      <label>Date</label>
+      <input type="date" id="ex-date" required />
+
+      <label>Category</label>
+      <select id="ex-category" required>
+        <option>Meat</option><option>Groceries</option><option>Spices</option>
+        <option>Packaging</option><option>Fuel</option><option>Gas</option>
+        <option>Marketing</option><option>Equipment</option><option>Other</option>
+      </select>
+
+      <label>Amount (AED)</label>
+      <input type="number" id="ex-amount" step="0.01" min="0" required inputmode="decimal" />
+
+      <label>Vendor / supplier <span class="muted small">optional</span></label>
+      <input type="text" id="ex-vendor" placeholder="e.g. Carrefour, Lulu" />
+
+      <label>Notes <span class="muted small">optional</span></label>
+      <input type="text" id="ex-notes" placeholder="e.g. for Saturday cook" />
+
+      <label>Receipt photo <span class="muted small">optional</span></label>
+      <input type="file" id="ex-receipt" accept="image/*" capture="environment" />
+      <div id="ex-receipt-preview" class="receipt-preview" hidden></div>
+
+      <button type="submit" class="btn primary block" id="ex-save">Save expense</button>
+    </form>
+  </div>
+</div>
+
+<!-- Order detail / WhatsApp modal -->
+<div id="orderModal" class="modal" hidden>
+  <div class="modal-overlay" data-close-modal></div>
+  <div class="modal-card">
+    <header class="modal-head">
+      <div>
+        <h3 id="om-title">Order</h3>
+        <p class="muted small" id="om-sub"></p>
+      </div>
+      <button class="modal-close" data-close-modal aria-label="Close">✕</button>
+    </header>
+    <div class="modal-body">
+      <div id="om-details" class="order-details"></div>
+
+      <label>Status</label>
+      <select id="om-status">
+        <option>New</option><option>Confirmed</option><option>Ready</option>
+        <option>Out for delivery</option><option>Delivered</option><option>Cancelled</option>
+      </select>
+      <button class="btn primary block" id="om-save-status">Update status</button>
+
+      <h4>WhatsApp templates</h4>
+      <div class="wa-templates" id="om-templates"></div>
+
+      <h4>Custom message</h4>
+      <textarea id="om-custom" rows="3" placeholder="Type a custom message…"></textarea>
+      <button class="btn ghost block" id="om-send-custom">Open in WhatsApp</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast" hidden></div>
+
+<script src="./admin.js"></script>
+</body>
+</html>
