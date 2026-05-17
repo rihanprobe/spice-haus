@@ -224,7 +224,8 @@ function paymentTemplate(o) {
   return `${greet(o)}\n\nTo confirm your order ${o.order_number} (AED ${fmt(o.total)}), please transfer the amount to:\n\n🏦 *The National Bank of Ras Al Khaimah (P.S.C.)*\nName: Mohamed Rihan Abdul Karim Rihan Abdul Karim Chougle\nAccount: 0372011779001\nIBAN: AE74 0400 0003 7201 1779 001\nSWIFT: NRAKAEAK\n\nKindly share the payment screenshot once done — your bhuna will be on the way shortly.\n\nThank you 🙏${bizSig()}`;
 }
 function readyPickupTemplate(o) {
-  return `${greet(o)}\n\nYour ${o.meat.toLowerCase()} bhuna (${o.quantity}kg) is ready for pickup.\n\nWe're open until 11 PM. See you soon!${bizSig()}`;
+  const time = cleanTime(o.time);
+  return `${greet(o)}\n\nYour ${o.meat.toLowerCase()} bhuna (${o.quantity}kg) is freshly cooked and ready for pickup${time ? ' at your scheduled time of *' + time + '*' : ''}.\n\nSee you soon!${bizSig()}`;
 }
 function outForDeliveryTemplate(o) {
   const time = cleanTime(o.time);
