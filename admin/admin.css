@@ -162,6 +162,26 @@ main#content { padding: 18px 16px; max-width: 700px; margin: 0 auto; }
   font-weight: 400; color: var(--ink-500); font-size: 0.74rem;
 }
 
+/* Quick-action buttons on order rows */
+.row-actions {
+  display: flex; gap: 8px; margin-top: 10px; padding-top: 10px;
+  border-top: 1px dashed var(--line);
+}
+.qa-btn {
+  flex: 1; padding: 9px 10px; border-radius: 10px;
+  font-size: 0.82rem; font-weight: 600; letter-spacing: 0.02em;
+  border: 1.5px solid var(--brass); cursor: pointer;
+  font-family: inherit; transition: transform 0.05s ease, box-shadow 0.15s ease;
+}
+.qa-btn:active { transform: scale(0.97); }
+.qa-btn:disabled { opacity: 0.6; cursor: wait; }
+.qa-pay { background: #065f46; color: #fff; border-color: #065f46; }
+.qa-pay:hover { background: #047857; }
+.qa-ready { background: var(--teal-dark); color: #fff; border-color: var(--teal-dark); }
+.qa-ready:hover { filter: brightness(1.1); }
+.qa-ghost { background: transparent; color: var(--teal-dark); }
+.qa-ghost:hover { background: rgba(45,95,93,0.06); }
+
 .empty {
   text-align: center; padding: 36px 12px; color: var(--ink-500);
   background: var(--card); border-radius: 14px; border: 1px dashed var(--line);

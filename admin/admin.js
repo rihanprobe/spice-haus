@@ -121,6 +121,21 @@ function renderOrders() {
   $('#ordersList').innerHTML = list.map(o => {
     const pay = o.payment_status || 'Pending';
     const del = o.delivery_status || o.status || 'New';
+
+    // Decide which quick-action to show as the primary green button
+    let primary = '';
+    if (pay !== 'Received') {
+      primary = `<button type="button" class="qa-btn qa-pay" data-qa="mark_paid">✅ Mark Paid</button>`;
+    } else if (del === 'New' || del === 'Confirmed') {
+      primary = `<button type="button" class="qa-btn qa-ready" data-qa="mark_ready">🍲 Mark Ready</button>`;
+    } else if (del === 'Ready') {
+      const next = (o.method && o.method.toLowerCase().indexOf('deliver') >= 0) ? 'out_for_delivery' : 'mark_delivered';
+      const label = next === 'out_for_delivery' ? '🚚 Out for delivery' : '📦 Mark Delivered';
+      primary = `<button type="button" class="qa-btn qa-ready" data-qa="${next}">${label}</button>`;
+    } else if (del === 'Out for delivery') {
+      primary = `<button type="button" class="qa-btn qa-ready" data-qa="mark_delivered">📦 Mark Delivered</button>`;
+    }
+
     return `
     <div class="row" data-order="${escapeHtml(o.order_number)}">
       <div class="row-top">
@@ -138,9 +153,76 @@ function renderOrders() {
         <span class="row-meta">${escapeHtml(cleanDate(o.date))}${o.time ? ' · ' + escapeHtml(cleanTime(o.time)) : ''}</span>
         <span class="row-amount">AED ${fmt(o.total)}</span>
       </div>
+      ${primary ? `<div class="row-actions">${primary}<button type="button" class="qa-btn qa-ghost" data-qa="open">Details</button></div>` : ''}
     </div>`;
   }).join('');
-  $$('#ordersList .row').forEach(r => r.addEventListener('click', () => openOrder(r.dataset.order)));
+
+  // Wire clicks
+  $$('#ordersList .row').forEach(r => {
+    r.addEventListener('click', (e) => {
+      const qaEl = e.target.closest('.qa-btn');
+      if (qaEl) {
+        e.stopPropagation();
+        const action = qaEl.dataset.qa;
+        if (action === 'open') return openOrder(r.dataset.order);
+        return quickAction(r.dataset.order, action, qaEl);
+      }
+      openOrder(r.dataset.order);
+    });
+  });
+}
+
+/* One-tap actions from the orders list */
+async function quickAction(orderNumber, action, btn) {
+  const o = state.orders.find(x => x.order_number === orderNumber);
+  if (!o) return;
+
+  let payload = { action: 'admin_update_status', order_number: orderNumber };
+  let confirmMsg = '';
+  let askRef = false;
+
+  if (action === 'mark_paid') {
+    askRef = true;
+    payload.payment_status = 'Received';
+    payload.delivery_status = (o.delivery_status === 'New' || !o.delivery_status) ? 'Confirmed' : o.delivery_status;
+    confirmMsg = `Mark ${orderNumber} as PAID?\n\nThis will:\n• Set payment to Received\n• Move delivery to Confirmed (if still New)\n\nOptional: enter payment reference (transaction ID / last 4 digits) or leave blank.`;
+  } else if (action === 'mark_ready') {
+    payload.delivery_status = 'Ready';
+    confirmMsg = `Mark ${orderNumber} as READY?`;
+  } else if (action === 'out_for_delivery') {
+    payload.delivery_status = 'Out for delivery';
+    confirmMsg = `Mark ${orderNumber} as OUT FOR DELIVERY?`;
+  } else if (action === 'mark_delivered') {
+    payload.delivery_status = 'Delivered';
+    confirmMsg = `Mark ${orderNumber} as DELIVERED?`;
+  } else {
+    return;
+  }
+
+  // Ask for payment ref on "Mark Paid"
+  if (askRef) {
+    const ref = window.prompt(confirmMsg, o.payment_ref || '');
+    if (ref === null) return; // cancelled
+    payload.payment_ref = (ref || '').trim();
+  } else {
+    if (!window.confirm(confirmMsg)) return;
+  }
+
+  const oldLabel = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+  try {
+    await apiPost(payload);
+    // Update local state
+    if (payload.payment_status)  o.payment_status  = payload.payment_status;
+    if (payload.delivery_status) { o.delivery_status = payload.delivery_status; o.status = payload.delivery_status; }
+    if (payload.payment_ref !== undefined) o.payment_ref = payload.payment_ref;
+    toast('Updated — ' + orderNumber);
+    renderOrders();
+    refreshToday();
+  } catch (e) {
+    toast('Update failed: ' + e.message);
+    if (btn) { btn.disabled = false; btn.textContent = oldLabel; }
+  }
 }
 
 /* ---------- ORDER DETAIL + WHATSAPP ---------- */
