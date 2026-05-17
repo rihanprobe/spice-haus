@@ -232,7 +232,7 @@ function outForDeliveryTemplate(o) {
   return `${greet(o)}\n\nYour order *${o.order_number}* is on the way to ${o.city || 'you'}${time ? ' for ' + time : ''}. ETA in ~30 minutes.\n\nDriver will WhatsApp you on arrival.${bizSig()}`;
 }
 function thankYouTemplate(o) {
-  return `${greet(o)}\n\nHope you enjoyed your bhuna gosht. A reminder — 10% of every order goes back to those in need.\n\nIf you loved it, a quick reply or share on Instagram would mean the world. Order again any time at https://spicehaus.org${bizSig()}`;
+  return `${greet(o)}\n\nHope you enjoyed your bhuna gosht. 🙏\n\nA small reminder — 10% of every order goes back to those in need, so thank you for being part of that.\n\nIf you have a moment, we'd love to hear your honest feedback — just reply to this message. It helps us cook better and keeps our little kitchen going.${bizSig()}`;
 }
 function followUpTemplate(o) {
   return `${greet(o)}\n\nA quick hello from our kitchen — we hope you and your family are doing well.\n\nNo occasion, just wanted to thank you again for trusting us with your last meal. It meant a lot.\n\nWhenever you'd like us to cook for you again, we're here.\n\nWarmly,\nSpice Haus`;
