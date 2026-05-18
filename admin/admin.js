@@ -610,9 +610,24 @@ function bindOrderModal() {
       const arr = next.split(',').map(s => s.trim()).filter(Boolean);
       if (!arr.length) { toast('Need at least one dish'); return; }
       setTrialDishes(arr);
-      // Refresh dropdown
+      // Refresh dropdown, keeping prior selection if it still exists
+      const prior = compSelect.value;
       compSelect.innerHTML = arr.map(d => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('');
-      toast('Trial dishes updated');
+      // Prefer the newly-added dish (typically the last one); else keep prior if present; else first
+      const wasInOld = current.split(',').map(s => s.trim()).filter(Boolean);
+      const newlyAdded = arr.filter(d => wasInOld.indexOf(d) === -1);
+      if (newlyAdded.length) {
+        compSelect.value = newlyAdded[newlyAdded.length - 1];
+      } else if (arr.indexOf(prior) >= 0) {
+        compSelect.value = prior;
+      } else {
+        compSelect.value = arr[0];
+      }
+      // Sync state.currentOrder.comp_dish if checkbox is on
+      if (state.currentOrder && compEnable && compEnable.checked) {
+        state.currentOrder.comp_dish = compSelect.value || null;
+      }
+      toast('Saved — "' + compSelect.value + '" selected');
     });
   }
 }
@@ -649,10 +664,19 @@ function generateInvoicePDF(o) {
   doc.setDrawColor(...BRASS);
   doc.setLineWidth(1.2);
   doc.roundedRect(MARGIN, 32, 64, 64, 10, 10, 'S');
-  // Draw the actual logo image (teal burger on cream) inside the tile
+  // Draw the actual logo image (teal burger on cream) inside the tile, fully centred
+  // Logo aspect is 5:3 (400×240). Fit it inside a 56×56 box centred in the 64×64 tile.
   if (window.INVOICE_LOGO_PNG) {
     try {
-      doc.addImage(window.INVOICE_LOGO_PNG, 'PNG', MARGIN + 4, 32 + 14, 56, 34);
+      const boxW = 56, boxH = 56;
+      const aspect = 400 / 240; // 1.667
+      let imgW = boxW;
+      let imgH = imgW / aspect;
+      if (imgH > boxH) { imgH = boxH; imgW = imgH * aspect; }
+      const tileX = MARGIN, tileY = 32, tileW = 64, tileH = 64;
+      const ix = tileX + (tileW - imgW) / 2;
+      const iy = tileY + (tileH - imgH) / 2;
+      doc.addImage(window.INVOICE_LOGO_PNG, 'PNG', ix, iy, imgW, imgH);
     } catch (e) {
       // fallback to SH text if image fails
       doc.setTextColor(...TEAL); doc.setFont('helvetica', 'bold'); doc.setFontSize(22);
@@ -780,7 +804,7 @@ function generateInvoicePDF(o) {
     doc.setFontSize(10);
     doc.text('—', PAGE_W - MARGIN - 200, y + 18, { align: 'right' });
     doc.text('—', PAGE_W - MARGIN - 100, y + 18, { align: 'right' });
-    doc.text('AED 0.00  (gift)', PAGE_W - MARGIN - 12, y + 18, { align: 'right' });
+    doc.text('AED 0.00', PAGE_W - MARGIN - 12, y + 18, { align: 'right' });
     y += 28;
   }
 
@@ -1029,7 +1053,7 @@ td .sub { color: #888; font-size: 10px; margin-top: 3px; }
         <td class="r">AED ${fmt(o.price_per_kg)}</td>
         <td class="r">AED ${fmt(lineAmount)}</td>
       </tr>
-      ${o.comp_dish ? `<tr class="comp-row"><td><div class="desc">Compliments of the kitchen: ${escapeHtml(o.comp_dish)}</div><div class="sub">A small thank-you from our kitchen — we'd love your feedback.</div></td><td class="r">—</td><td class="r">—</td><td class="r">AED 0.00 (gift)</td></tr>` : ''}
+      ${o.comp_dish ? `<tr class="comp-row"><td><div class="desc">Compliments of the kitchen: ${escapeHtml(o.comp_dish)}</div><div class="sub">A small thank-you from our kitchen — we'd love your feedback.</div></td><td class="r">—</td><td class="r">—</td><td class="r">AED 0.00</td></tr>` : ''}
       ${o.notes ? `<tr><td colspan="4" style="background:#fcfaf4;color:#888;font-size:11px;">Note: ${escapeHtml(o.notes)}</td></tr>` : ''}
       </tbody>
     </table>
