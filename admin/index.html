@@ -214,6 +214,15 @@
 
       <button class="btn primary block" id="om-save-status">Update order</button>
 
+      <h4>Complimentary dish <span class="hint">(optional — for trials &amp; feedback)</span></h4>
+      <div class="comp-row">
+        <label class="check-row"><input type="checkbox" id="om-comp-enable" /> Include a complimentary dish on this invoice</label>
+        <div class="comp-pickers" id="om-comp-pickers" hidden>
+          <select id="om-comp-dish"></select>
+          <button type="button" class="btn ghost small" id="om-comp-manage">Manage list</button>
+        </div>
+      </div>
+
       <h4>Invoice</h4>
       <div class="invoice-actions">
         <button type="button" class="btn ghost" id="om-invoice-pdf">📄 Download PDF invoice</button>
@@ -233,6 +242,7 @@
 <div id="toast" class="toast" hidden></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="./invoice-logo.js"></script>
 <script src="./admin.js"></script>
 </body>
 </html>

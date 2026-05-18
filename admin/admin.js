@@ -419,8 +419,34 @@ function openOrder(orderNumber) {
     openWhatsApp(o.phone, tpls[i][1]);
   }));
 
+  // Populate complimentary dish picker
+  const dishes = getTrialDishes();
+  const sel = $('#om-comp-dish');
+  if (sel) {
+    sel.innerHTML = dishes.map(d => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('');
+    const enabled = !!o.comp_dish;
+    $('#om-comp-enable').checked = enabled;
+    $('#om-comp-pickers').hidden = !enabled;
+    if (enabled && dishes.indexOf(o.comp_dish) >= 0) sel.value = o.comp_dish;
+  }
+
   $('#om-custom').value = '';
   openModal('#orderModal');
+}
+
+/* ---------- Trial / complimentary dishes (admin-managed list, localStorage) ---------- */
+function getTrialDishes() {
+  try {
+    const raw = localStorage.getItem('sh_trial_dishes_v1');
+    if (raw) {
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr) && arr.length) return arr;
+    }
+  } catch (e) {}
+  return ['Chicken Tikka', 'Mutton Pulao', 'Dal Makhani', 'Chicken Biryani', 'Seekh Kebab'];
+}
+function setTrialDishes(arr) {
+  try { localStorage.setItem('sh_trial_dishes_v1', JSON.stringify(arr)); } catch (e) {}
 }
 
 function openWhatsApp(phone, message) {
@@ -554,7 +580,47 @@ function bindOrderModal() {
     if (!o) return;
     openInvoicePrint(o);
   });
+
+  // Complimentary dish toggle + dropdown
+  const compEnable = $('#om-comp-enable');
+  const compPickers = $('#om-comp-pickers');
+  const compSelect = $('#om-comp-dish');
+  const compManage = $('#om-comp-manage');
+  if (compEnable) {
+    compEnable.addEventListener('change', () => {
+      const on = compEnable.checked;
+      compPickers.hidden = !on;
+      if (state.currentOrder) {
+        state.currentOrder.comp_dish = on ? (compSelect.value || getTrialDishes()[0] || '') : null;
+      }
+    });
+  }
+  if (compSelect) {
+    compSelect.addEventListener('change', () => {
+      if (state.currentOrder && compEnable.checked) {
+        state.currentOrder.comp_dish = compSelect.value || null;
+      }
+    });
+  }
+  if (compManage) {
+    compManage.addEventListener('click', () => {
+      const current = getTrialDishes().join(', ');
+      const next = window.prompt('Trial dishes (comma-separated):', current);
+      if (next === null) return;
+      const arr = next.split(',').map(s => s.trim()).filter(Boolean);
+      if (!arr.length) { toast('Need at least one dish'); return; }
+      setTrialDishes(arr);
+      // Refresh dropdown
+      compSelect.innerHTML = arr.map(d => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('');
+      toast('Trial dishes updated');
+    });
+  }
 }
+
+/* Configurable feedback link — paste your own Google Form URL here when ready.
+   Until you do, only the WhatsApp feedback option is used. */
+const FEEDBACK_FORM_URL = '';   // e.g. 'https://forms.gle/abcd1234'
+const FEEDBACK_WHATSAPP = '971524718286';
 
 /* ---------- INVOICE PDF ---------- */
 function generateInvoicePDF(o) {
@@ -567,58 +633,52 @@ function generateInvoicePDF(o) {
 
   const PAGE_W = 595.28, PAGE_H = 841.89;
   const MARGIN = 40;
-  const TEAL = [45, 95, 93];   // #2D5F5D
-  const CREAM = [250, 246, 238]; // #FAF6EE
-  const BRASS = [201, 154, 75];  // #C99A4B
-  const INK = [40, 50, 50];
+  const TEAL  = [45, 95, 93];     // #2D5F5D
+  const CREAM = [250, 246, 238];  // #FAF6EE
+  const BRASS = [201, 154, 75];   // #C99A4B
+  const INK   = [40, 50, 50];
   const MUTED = [110, 120, 120];
 
   // ===== HEADER =====
   doc.setFillColor(...TEAL);
-  doc.rect(0, 0, PAGE_W, 110, 'F');
+  doc.rect(0, 0, PAGE_W, 120, 'F');
 
-  // Logo "tile" — cream rounded square + flame (simulated since we can't embed SVG mask easily)
+  // Logo tile with embedded burger
   doc.setFillColor(...CREAM);
-  doc.roundedRect(MARGIN, 30, 56, 56, 8, 8, 'F');
+  doc.roundedRect(MARGIN, 32, 64, 64, 10, 10, 'F');
   doc.setDrawColor(...BRASS);
   doc.setLineWidth(1.2);
-  doc.roundedRect(MARGIN, 30, 56, 56, 8, 8, 'S');
-  // Simple "SH" mark inside
-  doc.setTextColor(...TEAL);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(22);
-  doc.text('SH', MARGIN + 28, 65, { align: 'center' });
+  doc.roundedRect(MARGIN, 32, 64, 64, 10, 10, 'S');
+  // Draw the actual logo image (teal burger on cream) inside the tile
+  if (window.INVOICE_LOGO_PNG) {
+    try {
+      doc.addImage(window.INVOICE_LOGO_PNG, 'PNG', MARGIN + 4, 32 + 14, 56, 34);
+    } catch (e) {
+      // fallback to SH text if image fails
+      doc.setTextColor(...TEAL); doc.setFont('helvetica', 'bold'); doc.setFontSize(22);
+      doc.text('SH', MARGIN + 32, 72, { align: 'center' });
+    }
+  }
 
-  // Brand text
+  // Brand text (3 lines: name, location, phone)
   doc.setTextColor(...CREAM);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(24);
-  doc.text('Spice Haus', MARGIN + 72, 56);
+  doc.setFontSize(26);
+  doc.text('Spice Haus', MARGIN + 80, 58);
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  doc.text('Traditional slow-cooked bhuna  •  Sharjah, UAE', MARGIN + 72, 74);
-  doc.text('WhatsApp: +971 52 471 8286', MARGIN + 72, 88);
+  doc.setFontSize(11);
+  doc.text('Sharjah, UAE', MARGIN + 80, 78);
+  doc.text('WhatsApp: +971 52 471 8286', MARGIN + 80, 94);
 
   // INVOICE label — top right
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(20);
-  doc.text('INVOICE', PAGE_W - MARGIN, 56, { align: 'right' });
+  doc.setFontSize(22);
+  doc.text('INVOICE', PAGE_W - MARGIN, 58, { align: 'right' });
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
-  doc.text(o.order_number, PAGE_W - MARGIN, 74, { align: 'right' });
+  doc.text(o.order_number, PAGE_W - MARGIN, 78, { align: 'right' });
   const issued = new Date().toLocaleDateString('en-GB', { timeZone: 'Asia/Dubai', day: '2-digit', month: 'short', year: 'numeric' });
-  doc.text('Issued: ' + issued, PAGE_W - MARGIN, 88, { align: 'right' });
-
-  // PAID stamp (if applicable)
-  if (o.payment_status === 'Received') {
-    doc.setDrawColor(120, 160, 90);
-    doc.setTextColor(120, 160, 90);
-    doc.setLineWidth(1.5);
-    doc.roundedRect(PAGE_W - MARGIN - 80, 100, 80, 22, 4, 4, 'S');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(12);
-    doc.text('PAID ✓', PAGE_W - MARGIN - 40, 115, { align: 'center' });
-  }
+  doc.text('Issued: ' + issued, PAGE_W - MARGIN, 94, { align: 'right' });
 
   // ===== BILL TO =====
   let y = 160;
@@ -643,28 +703,34 @@ function generateInvoicePDF(o) {
   doc.text(o.phone || '—', MARGIN, y);
   doc.text((o.city || ''), PAGE_W / 2, y);
 
+  let leftY = y, rightY = y;
   if (o.address) {
-    y += 14;
+    rightY += 14;
     doc.setTextColor(...MUTED);
     doc.setFontSize(9);
     const addrLines = doc.splitTextToSize(o.address, (PAGE_W / 2) - MARGIN - 10);
-    doc.text(addrLines, PAGE_W / 2, y);
-    y += (addrLines.length - 1) * 11;
+    doc.text(addrLines, PAGE_W / 2, rightY);
+    rightY += (addrLines.length - 1) * 11;
   }
 
-  // Scheduled date/time
-  y += 18;
+  // ===== DATES (Order date + Scheduled for) =====
+  y = Math.max(leftY, rightY) + 24;
   const cleanedDate = cleanDate(o.date);
   const cleanedTime = cleanTime(o.time);
+  const orderDateStr = o.timestamp
+    ? new Date(o.timestamp).toLocaleString('en-GB', { timeZone: 'Asia/Dubai', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })
+    : issued;
   doc.setTextColor(...MUTED);
   doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
-  doc.text('SCHEDULED FOR', MARGIN, y);
+  doc.text('ORDER DATE', MARGIN, y);
+  doc.text(`${(o.method || '').toLowerCase().indexOf('pickup') >= 0 ? 'PICKUP' : 'DELIVERY'} DATE & TIME`, PAGE_W / 2, y);
   y += 14;
   doc.setTextColor(...INK);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(11);
-  doc.text(`${cleanedDate}${cleanedTime ? '  •  ' + cleanedTime : ''}`.trim() || '—', MARGIN, y);
+  doc.text(orderDateStr, MARGIN, y);
+  doc.text(`${cleanedDate}${cleanedTime ? '  •  ' + cleanedTime : ''}`.trim() || '—', PAGE_W / 2, y);
 
   // ===== LINE ITEMS TABLE =====
   y += 32;
@@ -679,7 +745,7 @@ function generateInvoicePDF(o) {
   doc.text('PRICE/KG', PAGE_W - MARGIN - 100, y + 17, { align: 'right' });
   doc.text('AMOUNT', PAGE_W - MARGIN - 12, y + 17, { align: 'right' });
 
-  // Row
+  // Row — main meat line
   y += 26;
   doc.setFillColor(...CREAM);
   doc.rect(MARGIN, y, PAGE_W - 2 * MARGIN, 36, 'F');
@@ -700,8 +766,25 @@ function generateInvoicePDF(o) {
   const lineAmount = (Number(o.quantity || 0) * Number(o.price_per_kg || 0)) || (Number(o.total || 0) - Number(o.delivery_fee || 0));
   doc.text(`AED ${fmt(lineAmount)}`, PAGE_W - MARGIN - 12, y + 22, { align: 'right' });
 
-  // Notes row (if any)
   y += 36;
+
+  // Complimentary dish row (if enabled on this order)
+  if (o.comp_dish) {
+    doc.setFillColor(255, 248, 236); // soft brass tint
+    doc.rect(MARGIN, y, PAGE_W - 2 * MARGIN, 28, 'F');
+    doc.setTextColor(...BRASS);
+    doc.setFont('helvetica', 'bolditalic');
+    doc.setFontSize(10);
+    doc.text(`Compliments of the kitchen: ${o.comp_dish}`, MARGIN + 12, y + 18);
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(10);
+    doc.text('—', PAGE_W - MARGIN - 200, y + 18, { align: 'right' });
+    doc.text('—', PAGE_W - MARGIN - 100, y + 18, { align: 'right' });
+    doc.text('AED 0.00  (gift)', PAGE_W - MARGIN - 12, y + 18, { align: 'right' });
+    y += 28;
+  }
+
+  // Notes row (if any)
   if (o.notes) {
     doc.setFillColor(252, 250, 244);
     const noteLines = doc.splitTextToSize('Note: ' + o.notes, PAGE_W - 2 * MARGIN - 24);
@@ -741,6 +824,7 @@ function generateInvoicePDF(o) {
   doc.text(`AED ${fmt(o.total)}`, PAGE_W - MARGIN, y + 4, { align: 'right' });
 
   // ===== PAYMENT INFO BLOCK =====
+  const paid = (o.payment_status === 'Received');
   y += 44;
   doc.setDrawColor(...BRASS);
   doc.setFillColor(255, 248, 236);
@@ -749,7 +833,7 @@ function generateInvoicePDF(o) {
   doc.setTextColor(...TEAL);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
-  if (o.payment_status === 'Received') {
+  if (paid) {
     doc.text('Payment received — thank you', MARGIN + 14, y + 22);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
@@ -771,13 +855,60 @@ function generateInvoicePDF(o) {
     doc.setFontSize(9);
     doc.text('Please share the payment screenshot via WhatsApp once done.', MARGIN + 14, y + 100);
   }
-
-  // ===== CHARITY NOTE =====
   y += 130;
-  doc.setFont('helvetica', 'italic');
+
+  // ===== CIRCULAR PAID STAMP (only if paid) =====
+  if (paid) {
+    const cx = PAGE_W - MARGIN - 50;
+    const cy = y + 22;
+    doc.saveGraphicsState && doc.saveGraphicsState();
+    doc.setDrawColor(120, 160, 90); // green
+    doc.setTextColor(120, 160, 90);
+    doc.setLineWidth(2.2);
+    doc.circle(cx, cy, 38, 'S');
+    doc.setLineWidth(0.8);
+    doc.circle(cx, cy, 32, 'S');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(18);
+    doc.text('PAID', cx, cy + 2, { align: 'center' });
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text('✓ received', cx, cy + 16, { align: 'center' });
+    doc.restoreGraphicsState && doc.restoreGraphicsState();
+    // Date below the stamp
+    if (o.payment_ref) {
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7);
+      doc.setTextColor(...MUTED);
+      doc.text('Ref: ' + String(o.payment_ref).slice(0, 18), cx, cy + 50, { align: 'center' });
+    }
+  }
+
+  // ===== FEEDBACK BOX =====
+  const fbY = y + (paid ? 70 : 10);
+  doc.setDrawColor(...BRASS);
+  doc.setFillColor(255, 251, 244);
+  doc.roundedRect(MARGIN, fbY, PAGE_W - 2 * MARGIN, 70, 8, 8, 'FD');
+  doc.setTextColor(...TEAL);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.text("How was your bhuna? We'd love your feedback.", MARGIN + 14, fbY + 20);
+  doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
+  doc.setTextColor(...INK);
+  const waText = `WhatsApp us: +971 52 471 8286  •  wa.me/${FEEDBACK_WHATSAPP}?text=Feedback%20${encodeURIComponent(o.order_number || '')}`;
+  doc.text(waText, MARGIN + 14, fbY + 38);
+  doc.setTextColor(...MUTED);
+  doc.setFontSize(8);
+  if (FEEDBACK_FORM_URL) {
+    doc.text('Quick form: ' + FEEDBACK_FORM_URL, MARGIN + 14, fbY + 52);
+  } else {
+    doc.text('Or just reply to this number — we read every message.', MARGIN + 14, fbY + 52);
+  }
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(8);
   doc.setTextColor(...BRASS);
-  doc.text('• 10% of every order goes back to those in need. Thank you for being part of that. •', PAGE_W / 2, y, { align: 'center' });
+  doc.text('• 10% of every order goes back to those in need. •', PAGE_W / 2, fbY + 64, { align: 'center' });
 
   // ===== FOOTER =====
   doc.setDrawColor(...BRASS);
@@ -804,6 +935,9 @@ function openInvoicePrint(o) {
   const lineAmount = (Number(o.quantity || 0) * Number(o.price_per_kg || 0)) || (Number(o.total || 0) - Number(o.delivery_fee || 0));
   const paid = o.payment_status === 'Received';
   const issued = new Date().toLocaleDateString('en-GB', { timeZone: 'Asia/Dubai', day: '2-digit', month: 'short', year: 'numeric' });
+  const orderDate = o.timestamp ? new Date(o.timestamp).toLocaleString('en-GB', { timeZone: 'Asia/Dubai', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) : issued;
+  const dateLabel = (o.method || '').toLowerCase().indexOf('pickup') >= 0 ? 'PICKUP DATE & TIME' : 'DELIVERY DATE & TIME';
+  const logoImg = window.INVOICE_LOGO_PNG ? `<img src="${window.INVOICE_LOGO_PNG}" alt="Spice Haus" style="max-width:44px;max-height:38px;">` : 'SH';
   const html = `<!doctype html><html><head><meta charset="utf-8"><title>Invoice ${escapeHtml(o.order_number)}</title>
 <style>
 body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #283232; margin: 0; padding: 40px; background: #fff; }
@@ -816,7 +950,13 @@ body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #283232; margin:
 .right { text-align: right; }
 .right h2 { margin: 0; font-size: 20px; letter-spacing: 1px; }
 .right small { display: block; font-size: 11px; opacity: 0.85; margin-top: 2px; }
-.paid-stamp { display: inline-block; border: 2px solid #6FA050; color: #6FA050; padding: 4px 12px; border-radius: 6px; font-weight: 700; font-size: 14px; margin-top: 8px; }
+.paid-circle { width: 88px; height: 88px; border: 3px double #6FA050; border-radius: 50%; color: #6FA050; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: 800; font-size: 18px; line-height: 1; margin: 12px 0 0 auto; transform: rotate(-6deg); }
+.paid-circle small { font-size: 9px; font-weight: 500; margin-top: 4px; letter-spacing: 0.5px; }
+.feedback-box { background: #FFFBF4; border: 1px solid #C99A4B; border-radius: 8px; padding: 14px 18px; margin-top: 22px; }
+.feedback-box h3 { margin: 0 0 6px; font-size: 13px; color: #2D5F5D; }
+.feedback-box .line { font-size: 11px; margin: 3px 0; color: #283232; }
+.feedback-box .charity-mini { text-align: center; font-style: italic; font-size: 10px; color: #C99A4B; margin-top: 8px; }
+.comp-row td { background: #FFF8EC !important; color: #C99A4B !important; font-style: italic; }
 .body { border: 1px solid #eee; border-top: 0; padding: 24px 28px; border-radius: 0 0 10px 10px; }
 .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px; }
 .label { font-size: 10px; font-weight: 700; color: #888; letter-spacing: 1px; margin-bottom: 6px; }
@@ -845,17 +985,17 @@ td .sub { color: #888; font-size: 10px; margin-top: 3px; }
 <div class="inv">
   <div class="head">
     <div class="brand">
-      <div class="tile">SH</div>
+      <div class="tile">${logoImg}</div>
       <div>
         <h1>Spice Haus</h1>
-        <small>Traditional slow-cooked bhuna  •  Sharjah, UAE</small>
+        <small>Sharjah, UAE</small><br>
+        <small>WhatsApp: +971 52 471 8286</small>
       </div>
     </div>
     <div class="right">
       <h2>INVOICE</h2>
       <small>${escapeHtml(o.order_number)}</small>
       <small>Issued ${escapeHtml(issued)}</small>
-      ${paid ? '<div class="paid-stamp">PAID ✓</div>' : ''}
     </div>
   </div>
   <div class="body">
@@ -869,7 +1009,16 @@ td .sub { color: #888; font-size: 10px; margin-top: 3px; }
         <div class="label">DELIVERY / PICKUP</div>
         <div class="name">${escapeHtml(o.method || '—')}</div>
         <div class="meta">${escapeHtml(o.city || '')}${o.address ? '<br>' + escapeHtml(o.address) : ''}</div>
-        <div class="meta" style="margin-top:6px;"><b>Scheduled:</b> ${escapeHtml(cleanedDate)}${cleanedTime ? '  •  ' + escapeHtml(cleanedTime) : ''}</div>
+      </div>
+    </div>
+    <div class="cols">
+      <div>
+        <div class="label">ORDER DATE</div>
+        <div class="meta" style="font-weight:600;color:#283232;">${escapeHtml(orderDate)}</div>
+      </div>
+      <div>
+        <div class="label">${escapeHtml(dateLabel)}</div>
+        <div class="meta" style="font-weight:600;color:#283232;">${escapeHtml(cleanedDate)}${cleanedTime ? '  •  ' + escapeHtml(cleanedTime) : ''}</div>
       </div>
     </div>
     <table>
@@ -880,6 +1029,7 @@ td .sub { color: #888; font-size: 10px; margin-top: 3px; }
         <td class="r">AED ${fmt(o.price_per_kg)}</td>
         <td class="r">AED ${fmt(lineAmount)}</td>
       </tr>
+      ${o.comp_dish ? `<tr class="comp-row"><td><div class="desc">Compliments of the kitchen: ${escapeHtml(o.comp_dish)}</div><div class="sub">A small thank-you from our kitchen — we'd love your feedback.</div></td><td class="r">—</td><td class="r">—</td><td class="r">AED 0.00 (gift)</td></tr>` : ''}
       ${o.notes ? `<tr><td colspan="4" style="background:#fcfaf4;color:#888;font-size:11px;">Note: ${escapeHtml(o.notes)}</td></tr>` : ''}
       </tbody>
     </table>
@@ -899,7 +1049,13 @@ td .sub { color: #888; font-size: 10px; margin-top: 3px; }
            <div class="line"><b>SWIFT:</b> NRAKAEAK</div>
            <div class="note">Please share the payment screenshot via WhatsApp once done.</div>`}
     </div>
-    <div class="charity">• 10% of every order goes back to those in need. Thank you for being part of that. •</div>
+    ${paid ? `<div class="paid-circle">PAID<small>✓ received</small></div>` : ''}
+    <div class="feedback-box">
+      <h3>How was your bhuna? We'd love your feedback.</h3>
+      <div class="line"><b>WhatsApp:</b> <a href="https://wa.me/${FEEDBACK_WHATSAPP}?text=${encodeURIComponent('Feedback for ' + (o.order_number || ''))}" target="_blank">+971 52 471 8286</a></div>
+      ${FEEDBACK_FORM_URL ? `<div class="line"><b>Quick form:</b> <a href="${escapeHtml(FEEDBACK_FORM_URL)}" target="_blank">${escapeHtml(FEEDBACK_FORM_URL)}</a></div>` : `<div class="line" style="color:#888;font-size:10px;">Or just reply to this number — we read every message.</div>`}
+      <div class="charity-mini">• 10% of every order goes back to those in need. •</div>
+    </div>
     <div class="foot">Spice Haus  •  spicehaus.org  •  WhatsApp +971 52 471 8286  •  Sharjah, UAE</div>
   </div>
 </div>
