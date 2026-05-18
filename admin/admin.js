@@ -16,6 +16,9 @@ let state = {
   expenses: [],
   today: null,
   currentOrder: null,
+  currentCustomer: null,
+  customerSort: 'spend',  // 'spend' | 'recent' | 'count' | 'name'
+  customerQuery: '',
   quickFilter: 'all'   // 'all' | 'unpaid' | 'today' | 'ready' | 'out' | 'stale'
 };
 
@@ -199,9 +202,10 @@ async function apiPost(payload) {
 function showTab(name) {
   $$('.tab').forEach(s => s.hidden = s.dataset.tab !== name);
   $$('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.go === name));
-  if (name === 'today')    refreshToday();
-  if (name === 'orders')   refreshOrders();
-  if (name === 'expenses') refreshExpenses();
+  if (name === 'today')     refreshToday();
+  if (name === 'orders')    refreshOrders();
+  if (name === 'customers') refreshCustomers();
+  if (name === 'expenses')  refreshExpenses();
 }
 
 /* ---------- TODAY ---------- */
@@ -1229,6 +1233,222 @@ function toast(msg) {
   toast._t = setTimeout(() => { t.hidden = true; }, 2400);
 }
 
+/* ---------- CUSTOMERS ---------- */
+/* Aggregates state.orders by phone. Returns array of customer objects:
+   { phone, name, first_name, last_name, order_count, total_spend, last_order_date,
+     last_order_ts, cities:Set<string>, methods:Set<string>, orders:[...]} */
+function aggregateCustomers() {
+  const map = new Map();
+  (state.orders || []).forEach(o => {
+    const phoneDigits = String(o.phone || '').replace(/\D/g, '');
+    if (!phoneDigits) return;
+    let c = map.get(phoneDigits);
+    if (!c) {
+      c = {
+        phone: phoneDigits,
+        phone_display: o.phone || phoneDigits,
+        first_name: o.first_name || '',
+        last_name: o.last_name || '',
+        order_count: 0,
+        total_spend: 0,
+        last_order_ts: 0,
+        last_order_date: '',
+        cities: new Set(),
+        methods: new Set(),
+        orders: []
+      };
+      map.set(phoneDigits, c);
+    }
+    c.order_count += 1;
+    const total = Number(o.total) || 0;
+    c.total_spend += total;
+    if (o.city) c.cities.add(o.city);
+    if (o.method) c.methods.add(o.method);
+    // Track the most recent order using its timestamp (preferred) or delivery date.
+    const tsRaw = o.timestamp || o.date || '';
+    const ts = tsRaw ? new Date(tsRaw).getTime() : 0;
+    if (ts && ts > c.last_order_ts) {
+      c.last_order_ts = ts;
+      c.last_order_date = tsRaw;
+      // Keep the most recent name spelling (in case it was updated)
+      if (o.first_name) c.first_name = o.first_name;
+      if (o.last_name)  c.last_name  = o.last_name;
+    }
+    c.orders.push(o);
+  });
+  const out = [];
+  map.forEach(c => {
+    c.name = (c.first_name + ' ' + c.last_name).trim() || '(no name)';
+    out.push(c);
+  });
+  return out;
+}
+
+function refreshCustomers() {
+  $('#customersList').innerHTML = '<div class="empty">Loading…</div>';
+  $('#customersSummary').textContent = 'Loading…';
+  // If orders aren't loaded yet, fetch them first; otherwise just render.
+  if (!state.orders || !state.orders.length) {
+    refreshOrders().then(renderCustomers).catch(() => renderCustomers());
+  } else {
+    renderCustomers();
+  }
+}
+
+function renderCustomers() {
+  const all = aggregateCustomers();
+  const q = (state.customerQuery || '').trim().toLowerCase();
+  let list = all.filter(c => {
+    if (!q) return true;
+    const hay = (c.name + ' ' + c.phone + ' ' + c.phone_display).toLowerCase();
+    return hay.indexOf(q) >= 0;
+  });
+
+  const sort = state.customerSort;
+  list.sort((a, b) => {
+    if (sort === 'recent') return b.last_order_ts - a.last_order_ts;
+    if (sort === 'count')  return b.order_count - a.order_count || b.total_spend - a.total_spend;
+    if (sort === 'name')   return a.name.localeCompare(b.name);
+    return b.total_spend - a.total_spend; // 'spend' default
+  });
+
+  // Summary line
+  const totalSpend = all.reduce((s, c) => s + c.total_spend, 0);
+  const repeat = all.filter(c => c.order_count > 1).length;
+  $('#customersSummary').textContent = `${all.length} customers · ${repeat} repeat · AED ${fmt(totalSpend)} lifetime`;
+
+  if (!list.length) {
+    $('#customersList').innerHTML = '<div class="empty">No customers match.</div>';
+    return;
+  }
+
+  $('#customersList').innerHTML = list.map(c => {
+    const repeatPill = c.order_count > 1 ? '<span class="pill pill-repeat">🔁 Repeat</span>' : '';
+    const vipPill = c.total_spend >= 500 ? '<span class="pill pill-vip">⭐ VIP</span>' : '';
+    const last = c.last_order_date ? cleanDate(c.last_order_date) : '—';
+    const cityLine = c.cities.size ? Array.from(c.cities).join(', ') : '';
+    return `
+      <div class="row cust-row" data-phone="${escapeHtml(c.phone)}">
+        <div class="row-top">
+          <div>
+            <div class="row-name">${escapeHtml(c.name)}</div>
+            <div class="row-meta">${escapeHtml(c.phone_display)}${cityLine ? ' · ' + escapeHtml(cityLine) : ''}</div>
+          </div>
+          <div class="pill-stack">
+            ${vipPill}
+            ${repeatPill}
+          </div>
+        </div>
+        <div class="cust-stats-row">
+          <div><span class="muted small">Orders</span><b>${c.order_count}</b></div>
+          <div><span class="muted small">Lifetime</span><b>AED ${fmt(c.total_spend)}</b></div>
+          <div><span class="muted small">Last order</span><b>${escapeHtml(last)}</b></div>
+        </div>
+        <div class="row-actions">
+          <button type="button" class="qa-btn qa-ready" data-cust-wa="${escapeHtml(c.phone)}">💬 WhatsApp</button>
+          <button type="button" class="qa-btn qa-ghost" data-cust-open="${escapeHtml(c.phone)}">View history</button>
+        </div>
+      </div>`;
+  }).join('');
+
+  // Wire clicks
+  $$('#customersList .cust-row').forEach(r => {
+    r.addEventListener('click', (e) => {
+      const waBtn = e.target.closest('[data-cust-wa]');
+      if (waBtn) {
+        e.stopPropagation();
+        const phone = waBtn.dataset.custWa;
+        const c = aggregateCustomers().find(x => x.phone === phone);
+        if (c) openWhatsApp(phone, greet(c) + '\n');
+        return;
+      }
+      const phone = r.dataset.phone;
+      openCustomerModal(phone);
+    });
+  });
+}
+
+function openCustomerModal(phone) {
+  const c = aggregateCustomers().find(x => x.phone === phone);
+  if (!c) { toast('Customer not found'); return; }
+  state.currentCustomer = c;
+
+  $('#cm-title').textContent = c.name;
+  $('#cm-sub').textContent = c.phone_display;
+
+  const cities = c.cities.size ? Array.from(c.cities).join(', ') : '—';
+  $('#cm-stats').innerHTML = `
+    <div class="cust-stat"><span class="muted small">Orders</span><b>${c.order_count}</b></div>
+    <div class="cust-stat"><span class="muted small">Lifetime spend</span><b>AED ${fmt(c.total_spend)}</b></div>
+    <div class="cust-stat"><span class="muted small">Avg order</span><b>AED ${fmt(c.order_count ? c.total_spend / c.order_count : 0)}</b></div>
+    <div class="cust-stat"><span class="muted small">Last order</span><b>${escapeHtml(c.last_order_date ? cleanDate(c.last_order_date) : '—')}</b></div>
+    <div class="cust-stat span-2"><span class="muted small">Areas</span><b>${escapeHtml(cities)}</b></div>
+  `;
+
+  // Sort orders newest first by timestamp
+  const orders = c.orders.slice().sort((a, b) => {
+    const ta = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+    const tb = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+    return tb - ta;
+  });
+
+  $('#cm-history').innerHTML = orders.map(o => {
+    const pay = o.payment_status || 'Pending';
+    const del = o.delivery_status || o.status || 'New';
+    return `
+      <div class="cust-history-row" data-order="${escapeHtml(o.order_number)}">
+        <div class="chr-top">
+          <span class="chr-num">${escapeHtml(o.order_number)}</span>
+          <span class="chr-amt">AED ${fmt(o.total)}</span>
+        </div>
+        <div class="chr-meta">${escapeHtml(o.meat || '')} ${o.quantity || ''}${o.quantity ? 'kg' : ''} · ${escapeHtml(o.method || '')}${o.city ? ' · ' + escapeHtml(o.city) : ''}</div>
+        <div class="chr-foot">
+          <span class="row-meta">${escapeHtml(cleanDate(o.date))}${o.time ? ' · ' + escapeHtml(cleanTime(o.time)) : ''}</span>
+          <span class="pill pay-${cssClass(pay)}">${escapeHtml(pay)}</span>
+          <span class="pill ${cssClass(del)}">${escapeHtml(del)}</span>
+        </div>
+      </div>`;
+  }).join('') || '<div class="empty">No orders.</div>';
+
+  // Clicking a history row opens that order
+  $$('#cm-history .cust-history-row').forEach(row => {
+    row.addEventListener('click', () => {
+      const num = row.dataset.order;
+      const o = state.orders.find(x => x.order_number === num);
+      if (o) {
+        closeModal('#customerModal');
+        openOrderModal(o);
+      }
+    });
+  });
+
+  openModal('#customerModal');
+}
+
+function bindCustomersTab() {
+  const search = $('#customerSearch');
+  if (search) search.addEventListener('input', () => {
+    state.customerQuery = search.value || '';
+    renderCustomers();
+  });
+  const sortSel = $('#customerSort');
+  if (sortSel) sortSel.addEventListener('change', () => {
+    state.customerSort = sortSel.value;
+    renderCustomers();
+  });
+  const waBtn = $('#cm-wa');
+  if (waBtn) waBtn.addEventListener('click', () => {
+    const c = state.currentCustomer; if (!c) return;
+    openWhatsApp(c.phone, greet(c) + '\n');
+  });
+  const waThx = $('#cm-wa-thanks');
+  if (waThx) waThx.addEventListener('click', () => {
+    const c = state.currentCustomer; if (!c) return;
+    const msg = `${greet(c)}\n\nThank you for being a valued Spice Haus customer. We appreciate your continued support and look forward to serving you again soon.${bizSig()}`;
+    openWhatsApp(c.phone, msg);
+  });
+}
+
 /* ---------- Init ---------- */
 function init() {
   loadKey();
@@ -1258,7 +1478,7 @@ function init() {
     const t = e.target.closest('[data-go]');
     if (!t) return;
     const name = t.dataset.go;
-    if (['today','orders','expenses'].indexOf(name) >= 0) showTab(name);
+    if (['today','orders','customers','expenses'].indexOf(name) >= 0) showTab(name);
   });
 
   // Order filters
@@ -1290,6 +1510,7 @@ function init() {
   bindModalClose();
   bindExpenseForm();
   bindOrderModal();
+  bindCustomersTab();
 
   // Auto-enter if we already have a key
   if (state.key) {

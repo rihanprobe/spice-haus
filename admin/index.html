@@ -120,6 +120,22 @@
       <div id="ordersList" class="list"></div>
     </section>
 
+    <!-- CUSTOMERS -->
+    <section data-tab="customers" class="tab" hidden>
+      <h2>Customers</h2>
+      <p class="muted" id="customersSummary">Loading…</p>
+      <div class="cust-filters">
+        <input type="search" id="customerSearch" placeholder="Search name or phone…" />
+        <select id="customerSort">
+          <option value="spend">Sort: Lifetime spend</option>
+          <option value="recent">Sort: Most recent</option>
+          <option value="count">Sort: Order count</option>
+          <option value="name">Sort: Name (A–Z)</option>
+        </select>
+      </div>
+      <div id="customersList" class="list"></div>
+    </section>
+
     <!-- EXPENSES -->
     <section data-tab="expenses" class="tab" hidden>
       <div class="tab-head">
@@ -133,6 +149,7 @@
   <nav class="tabbar">
     <button class="tab-btn active" data-go="today"><span>Today</span></button>
     <button class="tab-btn"        data-go="orders"><span>Orders</span></button>
+    <button class="tab-btn"        data-go="customers"><span>Customers</span></button>
     <button class="tab-btn"        data-go="expenses"><span>Expenses</span></button>
   </nav>
 </div>
@@ -235,6 +252,29 @@
       <h4>Custom message</h4>
       <textarea id="om-custom" rows="3" placeholder="Type a custom message…"></textarea>
       <button class="btn ghost block" id="om-send-custom">Open in WhatsApp</button>
+    </div>
+  </div>
+</div>
+
+<!-- Customer detail modal -->
+<div id="customerModal" class="modal" hidden>
+  <div class="modal-overlay" data-close-modal></div>
+  <div class="modal-card">
+    <header class="modal-head">
+      <div>
+        <h3 id="cm-title">Customer</h3>
+        <p class="muted small" id="cm-sub"></p>
+      </div>
+      <button class="modal-close" data-close-modal aria-label="Close">✕</button>
+    </header>
+    <div class="modal-body">
+      <div class="cust-stats" id="cm-stats"></div>
+      <div class="cust-actions">
+        <button type="button" class="btn primary" id="cm-wa">💬 WhatsApp</button>
+        <button type="button" class="btn ghost" id="cm-wa-thanks">🙏 Thank-you message</button>
+      </div>
+      <h4>Order history</h4>
+      <div id="cm-history" class="cust-history"></div>
     </div>
   </div>
 </div>

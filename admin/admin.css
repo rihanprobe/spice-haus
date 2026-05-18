@@ -361,3 +361,57 @@ main#content { padding: 18px 16px; max-width: 700px; margin: 0 auto; }
 .comp-pickers select:focus { outline: none; border-color: var(--brass); }
 .btn.small { padding: 6px 12px; font-size: 0.85rem; }
 .invoice-actions { display: flex; gap: 8px; flex-wrap: wrap; margin: 6px 0 14px; }
+
+/* ---------- Customers tab ---------- */
+.cust-filters { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+.cust-filters input[type="search"],
+.cust-filters select {
+  flex: 1; min-width: 140px; padding: 9px 10px;
+  border: 1.5px solid var(--line); border-radius: 8px;
+  background: var(--cream); font-size: 0.95rem;
+}
+.cust-filters input[type="search"]:focus,
+.cust-filters select:focus { outline: none; border-color: var(--brass); }
+
+.cust-row { cursor: pointer; }
+.cust-stats-row {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 6px; margin: 8px 0;
+}
+.cust-stats-row > div { display: flex; flex-direction: column; gap: 1px; }
+.cust-stats-row b { font-size: 0.95rem; color: var(--teal); }
+
+.pill-repeat { background: #FFF4E0; color: #8B5A1E; }
+.pill-vip    { background: #FFE9A8; color: #6B4A04; }
+
+/* Customer modal */
+.cust-stats {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+  margin-bottom: 14px;
+}
+.cust-stat {
+  background: var(--cream); border: 1.5px solid var(--line);
+  border-radius: 10px; padding: 10px 12px;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.cust-stat b { color: var(--teal); font-size: 1.05rem; }
+.cust-stat.span-2 { grid-column: span 2; }
+
+.cust-actions {
+  display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px;
+}
+.cust-actions .btn { flex: 1; min-width: 140px; }
+
+.cust-history { display: flex; flex-direction: column; gap: 8px; }
+.cust-history-row {
+  background: var(--cream); border: 1.5px solid var(--line);
+  border-radius: 10px; padding: 10px 12px; cursor: pointer;
+  transition: border-color 0.15s, transform 0.05s;
+}
+.cust-history-row:hover { border-color: var(--brass); }
+.cust-history-row:active { transform: scale(0.99); }
+.chr-top { display: flex; justify-content: space-between; align-items: center; }
+.chr-num { font-weight: 600; color: var(--teal); }
+.chr-amt { font-weight: 700; }
+.chr-meta { font-size: 0.9rem; color: #555; margin: 4px 0; }
+.chr-foot { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; font-size: 0.85rem; }
