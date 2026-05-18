@@ -136,6 +136,52 @@
       <div id="customersList" class="list"></div>
     </section>
 
+    <!-- REPORTS -->
+    <section data-tab="reports" class="tab" hidden>
+      <h2>Reports</h2>
+      <div class="rep-range" id="repRange">
+        <button type="button" class="rep-chip active" data-range="this_week">This week</button>
+        <button type="button" class="rep-chip" data-range="last_week">Last week</button>
+        <button type="button" class="rep-chip" data-range="this_month">This month</button>
+        <button type="button" class="rep-chip" data-range="last_month">Last month</button>
+        <button type="button" class="rep-chip" data-range="ytd">YTD</button>
+        <button type="button" class="rep-chip" data-range="custom">Custom…</button>
+      </div>
+      <div class="rep-custom" id="repCustom" hidden>
+        <label>From <input type="date" id="repFrom" /></label>
+        <label>To <input type="date" id="repTo" /></label>
+        <button type="button" class="btn ghost small" id="repApply">Apply</button>
+      </div>
+      <p class="muted small" id="repRangeLabel"></p>
+
+      <h3 class="rep-h">Headline</h3>
+      <div class="stats">
+        <div class="stat"><div class="stat-label">Orders</div><div class="stat-value" id="repOrders">—</div></div>
+        <div class="stat"><div class="stat-label">Revenue</div><div class="stat-value">AED <span id="repRevenue">—</span></div></div>
+        <div class="stat"><div class="stat-label">Avg order</div><div class="stat-value">AED <span id="repAvg">—</span></div></div>
+        <div class="stat"><div class="stat-label">Expenses</div><div class="stat-value">AED <span id="repExpenses">—</span></div></div>
+        <div class="stat"><div class="stat-label">Net profit</div><div class="stat-value">AED <span id="repNet">—</span></div></div>
+        <div class="stat"><div class="stat-label">Charity (10%)</div><div class="stat-value">AED <span id="repCharity">—</span></div></div>
+      </div>
+
+      <h3 class="rep-h">Meat split</h3>
+      <div class="rep-split" id="repMeatSplit"></div>
+
+      <h3 class="rep-h">Emirate split</h3>
+      <div class="rep-split" id="repEmirateSplit"></div>
+
+      <h3 class="rep-h">Top 10 customers</h3>
+      <div class="rep-top" id="repTop"></div>
+
+      <h3 class="rep-h">Reviews &amp; feedback</h3>
+      <div class="rep-reviews" id="repReviews"></div>
+
+      <h3 class="rep-h">Export</h3>
+      <div class="invoice-actions">
+        <button type="button" class="btn ghost" id="repCsv">⬇ Download orders CSV</button>
+      </div>
+    </section>
+
     <!-- EXPENSES -->
     <section data-tab="expenses" class="tab" hidden>
       <div class="tab-head">
@@ -150,6 +196,7 @@
     <button class="tab-btn active" data-go="today"><span>Today</span></button>
     <button class="tab-btn"        data-go="orders"><span>Orders</span></button>
     <button class="tab-btn"        data-go="customers"><span>Customers</span></button>
+    <button class="tab-btn"        data-go="reports"><span>Reports</span></button>
     <button class="tab-btn"        data-go="expenses"><span>Expenses</span></button>
   </nav>
 </div>
@@ -244,6 +291,20 @@
       <div class="invoice-actions">
         <button type="button" class="btn ghost" id="om-invoice-pdf">📄 Download PDF invoice</button>
         <button type="button" class="btn ghost" id="om-invoice-print">🖨 Print preview</button>
+      </div>
+
+      <h4>Customer feedback <span class="hint">(rating &amp; note, saved locally)</span></h4>
+      <div class="fb-row">
+        <div class="fb-stars" id="om-fb-stars" role="radiogroup" aria-label="Rating">
+          <button type="button" class="fb-star" data-r="1">☆</button>
+          <button type="button" class="fb-star" data-r="2">☆</button>
+          <button type="button" class="fb-star" data-r="3">☆</button>
+          <button type="button" class="fb-star" data-r="4">☆</button>
+          <button type="button" class="fb-star" data-r="5">☆</button>
+          <button type="button" class="btn ghost small" id="om-fb-clear">Clear</button>
+        </div>
+        <textarea id="om-fb-note" rows="2" placeholder="What did the customer say?"></textarea>
+        <button type="button" class="btn ghost block" id="om-fb-save">Save feedback</button>
       </div>
 
       <h4>WhatsApp templates</h4>

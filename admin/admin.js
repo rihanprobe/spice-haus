@@ -19,6 +19,8 @@ let state = {
   currentCustomer: null,
   customerSort: 'spend',  // 'spend' | 'recent' | 'count' | 'name'
   customerQuery: '',
+  reportRange: 'this_week', // 'this_week'|'last_week'|'this_month'|'last_month'|'ytd'|'custom'
+  reportCustom: { from: null, to: null }, // ISO yyyy-mm-dd
   quickFilter: 'all'   // 'all' | 'unpaid' | 'today' | 'ready' | 'out' | 'stale'
 };
 
@@ -205,6 +207,7 @@ function showTab(name) {
   if (name === 'today')     refreshToday();
   if (name === 'orders')    refreshOrders();
   if (name === 'customers') refreshCustomers();
+  if (name === 'reports')   refreshReports();
   if (name === 'expenses')  refreshExpenses();
 }
 
@@ -435,6 +438,8 @@ function openOrder(orderNumber) {
   }
 
   $('#om-custom').value = '';
+  // Load any saved feedback for this order into the modal
+  if (typeof loadFeedbackIntoModal === 'function') loadFeedbackIntoModal(o.order_number);
   openModal('#orderModal');
 }
 
@@ -1423,7 +1428,7 @@ function openCustomerModal(phone) {
       const o = state.orders.find(x => x.order_number === num);
       if (o) {
         closeModal('#customerModal');
-        openOrderModal(o);
+        openOrder(o.order_number);
       }
     });
   });
@@ -1455,6 +1460,291 @@ function bindCustomersTab() {
   });
 }
 
+/* ---------- FEEDBACK (localStorage) ----------
+   Stored as a map { [order_number]: { rating: 1-5, note: string, ts: epoch_ms } } */
+const FEEDBACK_KEY = 'sh_feedback_v1';
+function getAllFeedback() {
+  try { const raw = localStorage.getItem(FEEDBACK_KEY);
+    if (raw) { const o = JSON.parse(raw); if (o && typeof o === 'object') return o; } }
+  catch (e) {}
+  return {};
+}
+function setFeedback(orderNum, data) {
+  const all = getAllFeedback();
+  if (!data) delete all[orderNum]; else all[orderNum] = data;
+  try { localStorage.setItem(FEEDBACK_KEY, JSON.stringify(all)); } catch (e) {}
+}
+function getFeedback(orderNum) {
+  const all = getAllFeedback();
+  return all[orderNum] || null;
+}
+
+function paintStars(scope, rating) {
+  $$('#' + scope + ' .fb-star').forEach(b => {
+    const r = parseInt(b.dataset.r, 10);
+    b.textContent = r <= rating ? '★' : '☆';
+    b.classList.toggle('on', r <= rating);
+  });
+}
+
+function bindFeedbackInModal() {
+  const stars = $$('#om-fb-stars .fb-star');
+  stars.forEach(b => b.addEventListener('click', () => {
+    const r = parseInt(b.dataset.r, 10);
+    paintStars('om-fb-stars', r);
+    const o = state.currentOrder; if (!o) return;
+    o._fb_rating = r;
+  }));
+  const clr = $('#om-fb-clear');
+  if (clr) clr.addEventListener('click', () => {
+    paintStars('om-fb-stars', 0);
+    $('#om-fb-note').value = '';
+    const o = state.currentOrder; if (!o) return;
+    o._fb_rating = 0;
+    setFeedback(o.order_number, null);
+    toast('Feedback cleared');
+  });
+  const save = $('#om-fb-save');
+  if (save) save.addEventListener('click', () => {
+    const o = state.currentOrder; if (!o) return;
+    const rating = o._fb_rating || 0;
+    const note = ($('#om-fb-note').value || '').trim();
+    if (!rating && !note) { toast('Add a rating or a note first'); return; }
+    setFeedback(o.order_number, { rating, note, ts: Date.now() });
+    toast('Feedback saved');
+  });
+}
+
+/* Populate feedback fields when an order modal opens.
+   Called from openOrder() via a hook in renderOrders flow. */
+function loadFeedbackIntoModal(orderNum) {
+  const fb = getFeedback(orderNum);
+  const r = fb ? (fb.rating || 0) : 0;
+  paintStars('om-fb-stars', r);
+  $('#om-fb-note').value = fb ? (fb.note || '') : '';
+  if (state.currentOrder) state.currentOrder._fb_rating = r;
+}
+
+/* ---------- REPORTS ---------- */
+function startOfDayDubai(d) {
+  // Treat all dates as Dubai-local (UTC+4). We just zero h/m/s.
+  const x = new Date(d); x.setHours(0,0,0,0); return x;
+}
+function reportRangeBounds() {
+  const now = new Date();
+  const today = startOfDayDubai(now);
+  const dow = today.getDay(); // 0=Sun
+  // Treat Monday as week start.
+  const daysSinceMon = (dow === 0) ? 6 : (dow - 1);
+  const thisMon = new Date(today); thisMon.setDate(today.getDate() - daysSinceMon);
+  const lastMon = new Date(thisMon); lastMon.setDate(thisMon.getDate() - 7);
+  const lastSun = new Date(thisMon); lastSun.setDate(thisMon.getDate() - 1); lastSun.setHours(23,59,59,999);
+  const thisMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+  const lastMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+  const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0); lastMonthEnd.setHours(23,59,59,999);
+  const ytdStart = new Date(today.getFullYear(), 0, 1);
+  const endOfToday = new Date(today); endOfToday.setHours(23,59,59,999);
+
+  switch (state.reportRange) {
+    case 'last_week':   return { from: lastMon, to: lastSun, label: 'Last week' };
+    case 'this_month':  return { from: thisMonthStart, to: endOfToday, label: 'This month' };
+    case 'last_month':  return { from: lastMonthStart, to: lastMonthEnd, label: 'Last month' };
+    case 'ytd':         return { from: ytdStart, to: endOfToday, label: 'Year to date' };
+    case 'custom': {
+      const f = state.reportCustom.from ? new Date(state.reportCustom.from) : thisMon;
+      const t = state.reportCustom.to   ? new Date(state.reportCustom.to)   : endOfToday;
+      t.setHours(23,59,59,999);
+      return { from: f, to: t, label: 'Custom range' };
+    }
+    case 'this_week':
+    default:            return { from: thisMon, to: endOfToday, label: 'This week' };
+  }
+}
+function fmtDateShort(d) {
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+function orderInRange(o, from, to) {
+  // Use timestamp B if present, else delivery date M.
+  const raw = o.timestamp || o.date || '';
+  if (!raw) return false;
+  const dt = new Date(raw);
+  if (isNaN(dt)) return false;
+  return dt >= from && dt <= to;
+}
+
+function refreshReports() {
+  // Ensure orders + expenses loaded
+  const ordersP = (state.orders && state.orders.length) ? Promise.resolve() : refreshOrders();
+  const expP    = (state.expenses && state.expenses.length) ? Promise.resolve() : refreshExpenses();
+  Promise.all([ordersP, expP]).finally(renderReports).catch(() => renderReports());
+}
+
+function renderReports() {
+  const { from, to, label } = reportRangeBounds();
+  $('#repRangeLabel').textContent = `${label} · ${fmtDateShort(from)} → ${fmtDateShort(to)}`;
+
+  const ordersAll = (state.orders || []).filter(o => orderInRange(o, from, to));
+  // Only count revenue from non-cancelled orders
+  const orders = ordersAll.filter(o => (o.delivery_status || o.status || '').toLowerCase() !== 'cancelled');
+  const revenue = orders.reduce((s, o) => s + (Number(o.total) || 0), 0);
+  const avg = orders.length ? revenue / orders.length : 0;
+
+  const expensesAll = (state.expenses || []).filter(x => {
+    const raw = x.date || x.timestamp || '';
+    if (!raw) return false;
+    const dt = new Date(raw); if (isNaN(dt)) return false;
+    return dt >= from && dt <= to;
+  });
+  const expenses = expensesAll.reduce((s, x) => s + (Number(x.amount) || 0), 0);
+  const charity = revenue * 0.10;
+  const net = revenue - expenses - charity;
+
+  $('#repOrders').textContent   = orders.length;
+  $('#repRevenue').textContent  = fmt(revenue);
+  $('#repAvg').textContent      = fmt(avg);
+  $('#repExpenses').textContent = fmt(expenses);
+  $('#repNet').textContent      = fmt(net);
+  $('#repCharity').textContent  = fmt(charity);
+
+  // Meat split (kg + AED)
+  const meat = {};
+  orders.forEach(o => {
+    const m = o.meat || 'Unknown';
+    if (!meat[m]) meat[m] = { kg: 0, aed: 0, count: 0 };
+    meat[m].kg    += Number(o.quantity) || 0;
+    meat[m].aed   += Number(o.total) || 0;
+    meat[m].count += 1;
+  });
+  const meatTotalAed = Object.values(meat).reduce((s, v) => s + v.aed, 0) || 1;
+  $('#repMeatSplit').innerHTML = Object.keys(meat).sort().map(m => {
+    const v = meat[m];
+    const pct = Math.round((v.aed / meatTotalAed) * 100);
+    return `
+      <div class="split-row">
+        <div class="split-top"><b>${escapeHtml(m)}</b><span>${v.count} orders · ${fmt(v.kg)}kg · AED ${fmt(v.aed)}</span></div>
+        <div class="split-bar"><div class="split-bar-fill" style="width:${pct}%"></div></div>
+        <div class="split-pct">${pct}%</div>
+      </div>`;
+  }).join('') || '<div class="empty">No orders in this range.</div>';
+
+  // Emirate split (Sharjah / Ajman / Dubai)
+  const emirates = { Sharjah: 0, Ajman: 0, Dubai: 0, Other: 0 };
+  const eCounts  = { Sharjah: 0, Ajman: 0, Dubai: 0, Other: 0 };
+  orders.forEach(o => {
+    const city = (o.city || '').trim();
+    const key = ['Sharjah','Ajman','Dubai'].indexOf(city) >= 0 ? city : 'Other';
+    emirates[key] += Number(o.total) || 0;
+    eCounts[key] += 1;
+  });
+  const eTotal = Object.values(emirates).reduce((s, v) => s + v, 0) || 1;
+  $('#repEmirateSplit').innerHTML = Object.keys(emirates).map(k => {
+    const aed = emirates[k]; const cnt = eCounts[k];
+    if (!cnt) return '';
+    const pct = Math.round((aed / eTotal) * 100);
+    return `
+      <div class="split-row">
+        <div class="split-top"><b>${escapeHtml(k)}</b><span>${cnt} orders · AED ${fmt(aed)}</span></div>
+        <div class="split-bar"><div class="split-bar-fill" style="width:${pct}%"></div></div>
+        <div class="split-pct">${pct}%</div>
+      </div>`;
+  }).join('') || '<div class="empty">No deliveries in this range.</div>';
+
+  // Top 10 customers (by spend in this range only)
+  const byPhone = new Map();
+  orders.forEach(o => {
+    const ph = String(o.phone || '').replace(/\D/g, ''); if (!ph) return;
+    const name = ((o.first_name||'') + ' ' + (o.last_name||'')).trim() || '(no name)';
+    let c = byPhone.get(ph);
+    if (!c) { c = { phone: ph, phone_display: o.phone || ph, name, count: 0, total: 0 }; byPhone.set(ph, c); }
+    c.count += 1; c.total += Number(o.total) || 0;
+  });
+  const top = Array.from(byPhone.values()).sort((a,b) => b.total - a.total).slice(0, 10);
+  $('#repTop').innerHTML = top.length ? top.map((c, i) => `
+    <div class="top-row">
+      <span class="top-rank">#${i+1}</span>
+      <div class="top-name">${escapeHtml(c.name)}<div class="row-meta">${escapeHtml(c.phone_display)} · ${c.count} order${c.count>1?'s':''}</div></div>
+      <span class="top-amt">AED ${fmt(c.total)}</span>
+    </div>`).join('') : '<div class="empty">No customers in this range.</div>';
+
+  // Reviews & feedback for orders in range
+  const fbAll = getAllFeedback();
+  const reviews = orders
+    .map(o => ({ o, fb: fbAll[o.order_number] }))
+    .filter(x => x.fb && (x.fb.rating || x.fb.note))
+    .sort((a, b) => (b.fb.ts || 0) - (a.fb.ts || 0));
+
+  if (!reviews.length) {
+    $('#repReviews').innerHTML = '<div class="empty">No feedback recorded yet. Open an order → Customer feedback to log one.</div>';
+  } else {
+    const totalR = reviews.filter(r => r.fb.rating).reduce((s, r) => s + r.fb.rating, 0);
+    const countR = reviews.filter(r => r.fb.rating).length;
+    const avgR = countR ? (totalR / countR) : 0;
+    const avgLine = countR ? `<div class="rev-summary"><b>${avgR.toFixed(1)} ★</b> avg · ${countR} rating${countR>1?'s':''}</div>` : '';
+    $('#repReviews').innerHTML = avgLine + reviews.map(r => {
+      const stars = r.fb.rating ? ('★'.repeat(r.fb.rating) + '☆'.repeat(5 - r.fb.rating)) : '';
+      const name = ((r.o.first_name||'') + ' ' + (r.o.last_name||'')).trim() || '(no name)';
+      return `
+        <div class="rev-row" data-order="${escapeHtml(r.o.order_number)}">
+          <div class="rev-top">
+            <span class="rev-stars">${stars}</span>
+            <span class="rev-name">${escapeHtml(name)}</span>
+            <span class="rev-num">${escapeHtml(r.o.order_number)}</span>
+          </div>
+          ${r.fb.note ? `<div class="rev-note">${escapeHtml(r.fb.note)}</div>` : ''}
+        </div>`;
+    }).join('');
+    $$('#repReviews .rev-row').forEach(row => row.addEventListener('click', () => {
+      const num = row.dataset.order;
+      if (num) openOrder(num);
+    }));
+  }
+
+  // Save range for CSV use
+  state._lastReport = { from, to, orders };
+}
+
+function downloadOrdersCsv() {
+  if (!state._lastReport) refreshReports();
+  const { from, to, orders } = state._lastReport || {};
+  if (!orders || !orders.length) { toast('No orders in this range'); return; }
+  const cols = ['order_number','timestamp','first_name','last_name','phone','meat','price_per_kg','quantity','method','city','address','time','date','notes','total','delivery_fee','payment_ref','payment_status','delivery_status'];
+  const esc = (v) => {
+    if (v === null || v === undefined) return '';
+    const s = String(v).replace(/"/g, '""');
+    return /[",\n]/.test(s) ? `"${s}"` : s;
+  };
+  const head = cols.join(',');
+  const rows = orders.map(o => cols.map(k => esc(o[k] !== undefined ? o[k] : '')).join(','));
+  const csv = head + '\n' + rows.join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const fname = `spice-haus-orders_${from.toISOString().slice(0,10)}_to_${to.toISOString().slice(0,10)}.csv`;
+  a.href = url; a.download = fname;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function bindReportsTab() {
+  // Range chips
+  const range = $('#repRange');
+  if (range) range.addEventListener('click', (e) => {
+    const btn = e.target.closest('.rep-chip'); if (!btn) return;
+    state.reportRange = btn.dataset.range;
+    $$('#repRange .rep-chip').forEach(b => b.classList.toggle('active', b === btn));
+    $('#repCustom').hidden = (state.reportRange !== 'custom');
+    if (state.reportRange !== 'custom') renderReports();
+  });
+  const apply = $('#repApply');
+  if (apply) apply.addEventListener('click', () => {
+    state.reportCustom.from = $('#repFrom').value || null;
+    state.reportCustom.to   = $('#repTo').value   || null;
+    renderReports();
+  });
+  const csv = $('#repCsv');
+  if (csv) csv.addEventListener('click', downloadOrdersCsv);
+}
+
 /* ---------- Init ---------- */
 function init() {
   loadKey();
@@ -1484,7 +1774,7 @@ function init() {
     const t = e.target.closest('[data-go]');
     if (!t) return;
     const name = t.dataset.go;
-    if (['today','orders','customers','expenses'].indexOf(name) >= 0) showTab(name);
+    if (['today','orders','customers','reports','expenses'].indexOf(name) >= 0) showTab(name);
   });
 
   // Order filters
@@ -1517,6 +1807,8 @@ function init() {
   bindExpenseForm();
   bindOrderModal();
   bindCustomersTab();
+  bindReportsTab();
+  bindFeedbackInModal();
 
   // Auto-enter if we already have a key
   if (state.key) {

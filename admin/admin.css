@@ -237,16 +237,17 @@ main#content { padding: 18px 16px; max-width: 700px; margin: 0 auto; }
 .tabbar {
   position: fixed; bottom: 0; left: 0; right: 0;
   background: var(--cream); border-top: 1px solid var(--line);
-  display: grid; grid-template-columns: repeat(4, 1fr); padding: 8px 4px;
+  display: grid; grid-template-columns: repeat(5, 1fr); padding: 8px 2px;
   padding-bottom: calc(8px + env(safe-area-inset-bottom));
   z-index: 20;
 }
 .tab-btn {
   background: transparent; border: 0; font: inherit;
   color: var(--ink-500); padding: 8px 2px; cursor: pointer;
-  font-size: 0.85rem; font-weight: 600;
+  font-size: 0.78rem; font-weight: 600;
   white-space: nowrap;
 }
+@media (min-width: 520px) { .tab-btn { font-size: 0.85rem; } }
 .tab-btn.active { color: var(--teal-dark); }
 .tab-btn.active span { border-bottom: 2px solid var(--brass); padding-bottom: 4px; }
 
@@ -416,3 +417,77 @@ main#content { padding: 18px 16px; max-width: 700px; margin: 0 auto; }
 .chr-amt { font-weight: 700; }
 .chr-meta { font-size: 0.9rem; color: #555; margin: 4px 0; }
 .chr-foot { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; font-size: 0.85rem; }
+
+/* ---------- Reports tab ---------- */
+.rep-range { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.rep-chip {
+  background: var(--cream); border: 1.5px solid var(--line);
+  border-radius: 999px; padding: 6px 12px;
+  font: inherit; font-size: 0.85rem; font-weight: 600;
+  cursor: pointer; color: var(--ink-500);
+}
+.rep-chip.active { background: var(--teal); color: #fff; border-color: var(--teal); }
+.rep-custom {
+  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  margin: 8px 0;
+}
+.rep-custom label { display: flex; gap: 6px; align-items: center; font-size: 0.85rem; color: var(--ink-500); }
+.rep-custom input[type="date"] {
+  padding: 7px 10px; border: 1.5px solid var(--line); border-radius: 8px;
+  background: var(--cream); font-size: 0.9rem;
+}
+.rep-h { margin: 18px 0 8px; color: var(--teal); font-size: 1rem; }
+
+.rep-split { display: flex; flex-direction: column; gap: 10px; }
+.split-row {
+  background: var(--cream); border: 1.5px solid var(--line);
+  border-radius: 10px; padding: 10px 12px;
+  display: grid; grid-template-columns: 1fr auto; gap: 4px 12px;
+  align-items: center;
+}
+.split-top { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 0.9rem; }
+.split-top b { color: var(--teal); }
+.split-bar { grid-column: 1; height: 8px; background: rgba(0,0,0,0.06); border-radius: 4px; overflow: hidden; }
+.split-bar-fill { height: 100%; background: var(--brass); border-radius: 4px; }
+.split-pct { grid-column: 2; font-weight: 700; color: var(--teal); font-size: 0.9rem; }
+
+.rep-top { display: flex; flex-direction: column; gap: 8px; }
+.top-row {
+  display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center;
+  background: var(--cream); border: 1.5px solid var(--line);
+  border-radius: 10px; padding: 10px 12px;
+}
+.top-rank { color: var(--brass); font-weight: 700; }
+.top-name { font-weight: 600; color: var(--teal); }
+.top-amt  { font-weight: 700; }
+
+.rep-reviews { display: flex; flex-direction: column; gap: 8px; }
+.rev-summary { font-size: 1.05rem; padding: 8px 0; }
+.rev-summary b { color: var(--brass); }
+.rev-row {
+  background: var(--cream); border: 1.5px solid var(--line);
+  border-radius: 10px; padding: 10px 12px; cursor: pointer;
+}
+.rev-row:hover { border-color: var(--brass); }
+.rev-top { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.rev-stars { color: var(--brass); font-size: 0.95rem; letter-spacing: 1px; }
+.rev-name  { font-weight: 600; color: var(--teal); }
+.rev-num   { font-size: 0.85rem; color: var(--ink-500); margin-left: auto; }
+.rev-note  { margin-top: 6px; font-size: 0.9rem; color: #333; }
+
+/* Feedback in order modal */
+.fb-row { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+.fb-stars { display: flex; gap: 4px; align-items: center; }
+.fb-star {
+  background: transparent; border: 0; cursor: pointer;
+  font-size: 1.6rem; color: #999; padding: 2px 4px;
+  transition: color 0.1s;
+}
+.fb-star.on, .fb-star:hover { color: var(--brass); }
+.fb-row textarea {
+  width: 100%; box-sizing: border-box;
+  padding: 9px 10px; border: 1.5px solid var(--line); border-radius: 8px;
+  background: var(--cream); font: inherit; font-size: 0.95rem;
+  resize: vertical;
+}
+.fb-row textarea:focus { outline: none; border-color: var(--brass); }
