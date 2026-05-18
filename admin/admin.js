@@ -952,7 +952,7 @@ function generateInvoicePDF(o) {
 
 /* Print preview — opens a styled HTML window the user can print or save as PDF natively */
 function openInvoicePrint(o) {
-  const w = window.open('', '_blank', 'noopener,width=820,height=900');
+  const w = window.open('', '_blank', 'width=820,height=900');
   if (!w) { toast('Pop-up blocked — please allow pop-ups for spicehaus.org'); return; }
   const cleanedDate = cleanDate(o.date);
   const cleanedTime = cleanTime(o.time);
