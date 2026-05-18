@@ -664,16 +664,18 @@ function generateInvoicePDF(o) {
   doc.setDrawColor(...BRASS);
   doc.setLineWidth(1.2);
   doc.roundedRect(MARGIN, 32, 64, 64, 10, 10, 'S');
-  // Draw the actual logo image (teal burger on cream) inside the tile, fully centred
-  // Logo aspect is 5:3 (400×240). Fit it inside a 56×56 box centred in the 64×64 tile.
+  // Draw the actual logo image (teal burger on cream) inside the tile, fully centred.
+  // The centred PNG already has symmetric padding baked in (374×254). Fit it into the tile.
   if (window.INVOICE_LOGO_PNG) {
     try {
-      const boxW = 56, boxH = 56;
-      const aspect = 400 / 240; // 1.667
-      let imgW = boxW;
-      let imgH = imgW / aspect;
-      if (imgH > boxH) { imgH = boxH; imgW = imgH * aspect; }
       const tileX = MARGIN, tileY = 32, tileW = 64, tileH = 64;
+      const lw = (window.INVOICE_LOGO_W || 374);
+      const lh = (window.INVOICE_LOGO_H || 254);
+      const aspect = lw / lh;
+      // Fit inside the full tile (no extra inner padding — the image already has its own).
+      let imgW = tileW;
+      let imgH = imgW / aspect;
+      if (imgH > tileH) { imgH = tileH; imgW = imgH * aspect; }
       const ix = tileX + (tileW - imgW) / 2;
       const iy = tileY + (tileH - imgH) / 2;
       doc.addImage(window.INVOICE_LOGO_PNG, 'PNG', ix, iy, imgW, imgH);
