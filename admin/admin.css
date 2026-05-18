@@ -298,6 +298,9 @@ main#content { padding: 18px 16px; max-width: 700px; margin: 0 auto; }
   opacity: 0.55; border-style: dashed;
   color: #8a6520; border-color: rgba(201,154,75,0.5);
 }
+.invoice-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+.invoice-actions .btn { font-size: 0.85rem; padding: 9px 10px; min-height: 38px; }
+
 .wa-templates .btn.tpl-highlight {
   background: #fff8ec; border-color: var(--brass);
   color: #8a5a1a; font-weight: 600;

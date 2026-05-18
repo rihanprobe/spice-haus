@@ -541,6 +541,372 @@ function bindOrderModal() {
     if (!o || !msg) { toast('Type a message first'); return; }
     openWhatsApp(o.phone, msg);
   });
+
+  $('#om-invoice-pdf').addEventListener('click', () => {
+    const o = state.currentOrder;
+    if (!o) return;
+    try { generateInvoicePDF(o); }
+    catch (e) { toast('PDF failed: ' + e.message); }
+  });
+
+  $('#om-invoice-print').addEventListener('click', () => {
+    const o = state.currentOrder;
+    if (!o) return;
+    openInvoicePrint(o);
+  });
+}
+
+/* ---------- INVOICE PDF ---------- */
+function generateInvoicePDF(o) {
+  if (!window.jspdf || !window.jspdf.jsPDF) {
+    toast('PDF library not loaded yet — refresh and try again');
+    return;
+  }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+
+  const PAGE_W = 595.28, PAGE_H = 841.89;
+  const MARGIN = 40;
+  const TEAL = [45, 95, 93];   // #2D5F5D
+  const CREAM = [250, 246, 238]; // #FAF6EE
+  const BRASS = [201, 154, 75];  // #C99A4B
+  const INK = [40, 50, 50];
+  const MUTED = [110, 120, 120];
+
+  // ===== HEADER =====
+  doc.setFillColor(...TEAL);
+  doc.rect(0, 0, PAGE_W, 110, 'F');
+
+  // Logo "tile" — cream rounded square + flame (simulated since we can't embed SVG mask easily)
+  doc.setFillColor(...CREAM);
+  doc.roundedRect(MARGIN, 30, 56, 56, 8, 8, 'F');
+  doc.setDrawColor(...BRASS);
+  doc.setLineWidth(1.2);
+  doc.roundedRect(MARGIN, 30, 56, 56, 8, 8, 'S');
+  // Simple "SH" mark inside
+  doc.setTextColor(...TEAL);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(22);
+  doc.text('SH', MARGIN + 28, 65, { align: 'center' });
+
+  // Brand text
+  doc.setTextColor(...CREAM);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(24);
+  doc.text('Spice Haus', MARGIN + 72, 56);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.text('Traditional slow-cooked bhuna  •  Sharjah, UAE', MARGIN + 72, 74);
+  doc.text('WhatsApp: +971 52 471 8286', MARGIN + 72, 88);
+
+  // INVOICE label — top right
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(20);
+  doc.text('INVOICE', PAGE_W - MARGIN, 56, { align: 'right' });
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.text(o.order_number, PAGE_W - MARGIN, 74, { align: 'right' });
+  const issued = new Date().toLocaleDateString('en-GB', { timeZone: 'Asia/Dubai', day: '2-digit', month: 'short', year: 'numeric' });
+  doc.text('Issued: ' + issued, PAGE_W - MARGIN, 88, { align: 'right' });
+
+  // PAID stamp (if applicable)
+  if (o.payment_status === 'Received') {
+    doc.setDrawColor(120, 160, 90);
+    doc.setTextColor(120, 160, 90);
+    doc.setLineWidth(1.5);
+    doc.roundedRect(PAGE_W - MARGIN - 80, 100, 80, 22, 4, 4, 'S');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.text('PAID ✓', PAGE_W - MARGIN - 40, 115, { align: 'center' });
+  }
+
+  // ===== BILL TO =====
+  let y = 160;
+  doc.setTextColor(...MUTED);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.text('BILL TO', MARGIN, y);
+  doc.text('DELIVERY / PICKUP', PAGE_W / 2, y);
+
+  y += 16;
+  doc.setTextColor(...INK);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(12);
+  const customer = (o.first_name + ' ' + (o.last_name || '')).trim() || '—';
+  doc.text(customer, MARGIN, y);
+  doc.text(o.method || '—', PAGE_W / 2, y);
+
+  y += 14;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.setTextColor(...INK);
+  doc.text(o.phone || '—', MARGIN, y);
+  doc.text((o.city || ''), PAGE_W / 2, y);
+
+  if (o.address) {
+    y += 14;
+    doc.setTextColor(...MUTED);
+    doc.setFontSize(9);
+    const addrLines = doc.splitTextToSize(o.address, (PAGE_W / 2) - MARGIN - 10);
+    doc.text(addrLines, PAGE_W / 2, y);
+    y += (addrLines.length - 1) * 11;
+  }
+
+  // Scheduled date/time
+  y += 18;
+  const cleanedDate = cleanDate(o.date);
+  const cleanedTime = cleanTime(o.time);
+  doc.setTextColor(...MUTED);
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'bold');
+  doc.text('SCHEDULED FOR', MARGIN, y);
+  y += 14;
+  doc.setTextColor(...INK);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(11);
+  doc.text(`${cleanedDate}${cleanedTime ? '  •  ' + cleanedTime : ''}`.trim() || '—', MARGIN, y);
+
+  // ===== LINE ITEMS TABLE =====
+  y += 32;
+  // Header
+  doc.setFillColor(...TEAL);
+  doc.rect(MARGIN, y, PAGE_W - 2 * MARGIN, 26, 'F');
+  doc.setTextColor(...CREAM);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.text('DESCRIPTION', MARGIN + 12, y + 17);
+  doc.text('QTY', PAGE_W - MARGIN - 200, y + 17, { align: 'right' });
+  doc.text('PRICE/KG', PAGE_W - MARGIN - 100, y + 17, { align: 'right' });
+  doc.text('AMOUNT', PAGE_W - MARGIN - 12, y + 17, { align: 'right' });
+
+  // Row
+  y += 26;
+  doc.setFillColor(...CREAM);
+  doc.rect(MARGIN, y, PAGE_W - 2 * MARGIN, 36, 'F');
+  doc.setTextColor(...INK);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  const meatDesc = `${o.meat || 'Bhuna'} Gosht`;
+  doc.text(meatDesc, MARGIN + 12, y + 16);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(...MUTED);
+  doc.text('Slow-cooked traditional bhuna', MARGIN + 12, y + 28);
+
+  doc.setTextColor(...INK);
+  doc.setFontSize(11);
+  doc.text(`${o.quantity || 0} kg`, PAGE_W - MARGIN - 200, y + 22, { align: 'right' });
+  doc.text(`AED ${fmt(o.price_per_kg)}`, PAGE_W - MARGIN - 100, y + 22, { align: 'right' });
+  const lineAmount = (Number(o.quantity || 0) * Number(o.price_per_kg || 0)) || (Number(o.total || 0) - Number(o.delivery_fee || 0));
+  doc.text(`AED ${fmt(lineAmount)}`, PAGE_W - MARGIN - 12, y + 22, { align: 'right' });
+
+  // Notes row (if any)
+  y += 36;
+  if (o.notes) {
+    doc.setFillColor(252, 250, 244);
+    const noteLines = doc.splitTextToSize('Note: ' + o.notes, PAGE_W - 2 * MARGIN - 24);
+    const noteH = 14 + noteLines.length * 12;
+    doc.rect(MARGIN, y, PAGE_W - 2 * MARGIN, noteH, 'F');
+    doc.setTextColor(...MUTED);
+    doc.setFontSize(9);
+    doc.text(noteLines, MARGIN + 12, y + 14);
+    y += noteH;
+  }
+
+  // ===== TOTALS =====
+  y += 16;
+  const totalsX = PAGE_W - MARGIN - 220;
+  doc.setTextColor(...MUTED);
+  doc.setFontSize(10);
+  doc.text('Subtotal', totalsX, y);
+  doc.setTextColor(...INK);
+  doc.text(`AED ${fmt(lineAmount)}`, PAGE_W - MARGIN, y, { align: 'right' });
+
+  if (o.delivery_fee && Number(o.delivery_fee) > 0) {
+    y += 16;
+    doc.setTextColor(...MUTED);
+    doc.text('Delivery fee', totalsX, y);
+    doc.setTextColor(...INK);
+    doc.text(`AED ${fmt(o.delivery_fee)}`, PAGE_W - MARGIN, y, { align: 'right' });
+  }
+
+  // Total bar
+  y += 22;
+  doc.setFillColor(...TEAL);
+  doc.rect(totalsX - 12, y - 14, (PAGE_W - MARGIN) - (totalsX - 12), 28, 'F');
+  doc.setTextColor(...CREAM);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(13);
+  doc.text('TOTAL', totalsX, y + 4);
+  doc.text(`AED ${fmt(o.total)}`, PAGE_W - MARGIN, y + 4, { align: 'right' });
+
+  // ===== PAYMENT INFO BLOCK =====
+  y += 44;
+  doc.setDrawColor(...BRASS);
+  doc.setFillColor(255, 248, 236);
+  doc.roundedRect(MARGIN, y, PAGE_W - 2 * MARGIN, 110, 8, 8, 'FD');
+
+  doc.setTextColor(...TEAL);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  if (o.payment_status === 'Received') {
+    doc.text('Payment received — thank you', MARGIN + 14, y + 22);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(...INK);
+    if (o.payment_ref) doc.text('Reference: ' + o.payment_ref, MARGIN + 14, y + 40);
+    doc.setTextColor(...MUTED);
+    doc.setFontSize(9);
+    doc.text('We appreciate your business. Your bhuna is being prepared with care.', MARGIN + 14, y + 60);
+  } else {
+    doc.text('Payment instructions', MARGIN + 14, y + 22);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(...INK);
+    doc.text('Bank: The National Bank of Ras Al Khaimah (P.S.C.)', MARGIN + 14, y + 40);
+    doc.text('Name: Mohamed Rihan Abdul Karim Rihan Abdul Karim Chougle', MARGIN + 14, y + 55);
+    doc.text('Account: 0372011779001  •  IBAN: AE74 0400 0003 7201 1779 001', MARGIN + 14, y + 70);
+    doc.text('SWIFT: NRAKAEAK', MARGIN + 14, y + 85);
+    doc.setTextColor(...MUTED);
+    doc.setFontSize(9);
+    doc.text('Please share the payment screenshot via WhatsApp once done.', MARGIN + 14, y + 100);
+  }
+
+  // ===== CHARITY NOTE =====
+  y += 130;
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(9);
+  doc.setTextColor(...BRASS);
+  doc.text('• 10% of every order goes back to those in need. Thank you for being part of that. •', PAGE_W / 2, y, { align: 'center' });
+
+  // ===== FOOTER =====
+  doc.setDrawColor(...BRASS);
+  doc.setLineWidth(0.5);
+  doc.line(MARGIN, PAGE_H - 60, PAGE_W - MARGIN, PAGE_H - 60);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(...MUTED);
+  doc.text('Spice Haus  •  spicehaus.org  •  WhatsApp +971 52 471 8286  •  Sharjah, UAE', PAGE_W / 2, PAGE_H - 42, { align: 'center' });
+  doc.text(`Invoice ${o.order_number}  •  Generated ${new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dubai' })}`, PAGE_W / 2, PAGE_H - 28, { align: 'center' });
+
+  // Save
+  const filename = `${o.order_number || 'invoice'}_${(o.first_name || 'customer').replace(/\s+/g,'_')}_invoice.pdf`;
+  doc.save(filename);
+  toast('Invoice downloaded — ' + filename);
+}
+
+/* Print preview — opens a styled HTML window the user can print or save as PDF natively */
+function openInvoicePrint(o) {
+  const w = window.open('', '_blank', 'noopener,width=820,height=900');
+  if (!w) { toast('Pop-up blocked — please allow pop-ups for spicehaus.org'); return; }
+  const cleanedDate = cleanDate(o.date);
+  const cleanedTime = cleanTime(o.time);
+  const lineAmount = (Number(o.quantity || 0) * Number(o.price_per_kg || 0)) || (Number(o.total || 0) - Number(o.delivery_fee || 0));
+  const paid = o.payment_status === 'Received';
+  const issued = new Date().toLocaleDateString('en-GB', { timeZone: 'Asia/Dubai', day: '2-digit', month: 'short', year: 'numeric' });
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Invoice ${escapeHtml(o.order_number)}</title>
+<style>
+body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #283232; margin: 0; padding: 40px; background: #fff; }
+.inv { max-width: 720px; margin: 0 auto; }
+.head { background: #2D5F5D; color: #FAF6EE; padding: 24px 28px; border-radius: 10px 10px 0 0; display: flex; align-items: center; justify-content: space-between; }
+.brand { display: flex; align-items: center; gap: 14px; }
+.tile { width: 52px; height: 52px; background: #FAF6EE; border: 1.5px solid #C99A4B; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #2D5F5D; font-weight: 800; font-size: 18px; }
+.brand h1 { margin: 0; font-size: 22px; }
+.brand small { font-size: 11px; opacity: 0.85; }
+.right { text-align: right; }
+.right h2 { margin: 0; font-size: 20px; letter-spacing: 1px; }
+.right small { display: block; font-size: 11px; opacity: 0.85; margin-top: 2px; }
+.paid-stamp { display: inline-block; border: 2px solid #6FA050; color: #6FA050; padding: 4px 12px; border-radius: 6px; font-weight: 700; font-size: 14px; margin-top: 8px; }
+.body { border: 1px solid #eee; border-top: 0; padding: 24px 28px; border-radius: 0 0 10px 10px; }
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px; }
+.label { font-size: 10px; font-weight: 700; color: #888; letter-spacing: 1px; margin-bottom: 6px; }
+.name { font-size: 14px; font-weight: 700; }
+.meta { font-size: 12px; color: #555; }
+table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+th { background: #2D5F5D; color: #FAF6EE; text-align: left; padding: 10px 12px; font-size: 11px; letter-spacing: 0.5px; }
+th.r, td.r { text-align: right; }
+td { background: #FAF6EE; padding: 14px 12px; font-size: 12px; border-top: 1px solid #fff; }
+td .desc { font-weight: 700; font-size: 13px; }
+td .sub { color: #888; font-size: 10px; margin-top: 3px; }
+.totals { margin-left: auto; width: 280px; font-size: 12px; }
+.totals .row { display: flex; justify-content: space-between; padding: 6px 0; color: #555; }
+.totals .grand { background: #2D5F5D; color: #FAF6EE; font-weight: 700; padding: 10px 14px; border-radius: 6px; font-size: 14px; margin-top: 8px; display: flex; justify-content: space-between; }
+.pay-box { background: #FFF8EC; border: 1px solid #C99A4B; padding: 16px 18px; border-radius: 8px; margin-top: 24px; }
+.pay-box h3 { margin: 0 0 8px; font-size: 13px; color: #2D5F5D; }
+.pay-box .line { font-size: 12px; color: #283232; margin: 4px 0; }
+.pay-box .note { font-size: 10px; color: #888; margin-top: 10px; }
+.charity { text-align: center; color: #C99A4B; font-style: italic; font-size: 11px; margin-top: 20px; }
+.foot { text-align: center; font-size: 10px; color: #888; margin-top: 24px; padding-top: 12px; border-top: 1px solid #C99A4B; }
+.actions { text-align: center; margin: 20px 0; }
+.actions button { background: #2D5F5D; color: #FAF6EE; border: 0; padding: 10px 24px; border-radius: 999px; font-size: 14px; cursor: pointer; font-weight: 600; }
+@media print { .actions { display: none; } body { padding: 0; } .inv { max-width: 100%; } }
+</style></head><body>
+<div class="actions"><button onclick="window.print()">🖨 Print or Save as PDF</button></div>
+<div class="inv">
+  <div class="head">
+    <div class="brand">
+      <div class="tile">SH</div>
+      <div>
+        <h1>Spice Haus</h1>
+        <small>Traditional slow-cooked bhuna  •  Sharjah, UAE</small>
+      </div>
+    </div>
+    <div class="right">
+      <h2>INVOICE</h2>
+      <small>${escapeHtml(o.order_number)}</small>
+      <small>Issued ${escapeHtml(issued)}</small>
+      ${paid ? '<div class="paid-stamp">PAID ✓</div>' : ''}
+    </div>
+  </div>
+  <div class="body">
+    <div class="cols">
+      <div>
+        <div class="label">BILL TO</div>
+        <div class="name">${escapeHtml((o.first_name + ' ' + (o.last_name || '')).trim() || '—')}</div>
+        <div class="meta">${escapeHtml(o.phone || '—')}</div>
+      </div>
+      <div>
+        <div class="label">DELIVERY / PICKUP</div>
+        <div class="name">${escapeHtml(o.method || '—')}</div>
+        <div class="meta">${escapeHtml(o.city || '')}${o.address ? '<br>' + escapeHtml(o.address) : ''}</div>
+        <div class="meta" style="margin-top:6px;"><b>Scheduled:</b> ${escapeHtml(cleanedDate)}${cleanedTime ? '  •  ' + escapeHtml(cleanedTime) : ''}</div>
+      </div>
+    </div>
+    <table>
+      <thead><tr><th>DESCRIPTION</th><th class="r">QTY</th><th class="r">PRICE/KG</th><th class="r">AMOUNT</th></tr></thead>
+      <tbody><tr>
+        <td><div class="desc">${escapeHtml(o.meat || 'Bhuna')} Gosht</div><div class="sub">Slow-cooked traditional bhuna</div></td>
+        <td class="r">${escapeHtml(String(o.quantity || 0))} kg</td>
+        <td class="r">AED ${fmt(o.price_per_kg)}</td>
+        <td class="r">AED ${fmt(lineAmount)}</td>
+      </tr>
+      ${o.notes ? `<tr><td colspan="4" style="background:#fcfaf4;color:#888;font-size:11px;">Note: ${escapeHtml(o.notes)}</td></tr>` : ''}
+      </tbody>
+    </table>
+    <div class="totals">
+      <div class="row"><span>Subtotal</span><span>AED ${fmt(lineAmount)}</span></div>
+      ${o.delivery_fee && Number(o.delivery_fee) > 0 ? `<div class="row"><span>Delivery fee</span><span>AED ${fmt(o.delivery_fee)}</span></div>` : ''}
+      <div class="grand"><span>TOTAL</span><span>AED ${fmt(o.total)}</span></div>
+    </div>
+    <div class="pay-box">
+      ${paid
+        ? `<h3>Payment received — thank you</h3>${o.payment_ref ? `<div class="line"><b>Reference:</b> ${escapeHtml(o.payment_ref)}</div>` : ''}<div class="note">We appreciate your business. Your bhuna is being prepared with care.</div>`
+        : `<h3>Payment instructions</h3>
+           <div class="line"><b>Bank:</b> The National Bank of Ras Al Khaimah (P.S.C.)</div>
+           <div class="line"><b>Name:</b> Mohamed Rihan Abdul Karim Rihan Abdul Karim Chougle</div>
+           <div class="line"><b>Account:</b> 0372011779001</div>
+           <div class="line"><b>IBAN:</b> AE74 0400 0003 7201 1779 001</div>
+           <div class="line"><b>SWIFT:</b> NRAKAEAK</div>
+           <div class="note">Please share the payment screenshot via WhatsApp once done.</div>`}
+    </div>
+    <div class="charity">• 10% of every order goes back to those in need. Thank you for being part of that. •</div>
+    <div class="foot">Spice Haus  •  spicehaus.org  •  WhatsApp +971 52 471 8286  •  Sharjah, UAE</div>
+  </div>
+</div>
+</body></html>`;
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
 }
 
 /* ---------- EXPENSES ---------- */
