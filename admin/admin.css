@@ -128,8 +128,11 @@ main#content { padding: 18px 16px; max-width: 700px; margin: 0 auto; }
 
 /* --- Quick filter chips --- */
 .quick-filters {
-  display: flex; gap: 8px; overflow-x: auto; padding: 4px 0 8px;
+  display: flex; flex-wrap: wrap; gap: 8px; padding: 4px 0 8px;
   -webkit-overflow-scrolling: touch; scrollbar-width: none;
+}
+@media (max-width: 480px) {
+  .quick-filters { flex-wrap: nowrap; overflow-x: auto; }
 }
 .quick-filters::-webkit-scrollbar { display: none; }
 .qf-btn {
@@ -324,6 +327,7 @@ main#content { padding: 18px 16px; max-width: 700px; margin: 0 auto; }
 /* Reminders chip in the quick filter strip */
 .qf-btn.qf-warn { border-color: var(--brass); color: #8a6520; }
 .qf-btn.qf-warn.active { background: var(--brass); border-color: var(--brass); color: #fff; }
+.qf-btn.qf-warn.active .qf-count { background: rgba(255,255,255,0.28); color: #fff; }
 
 /* --- Toast --- */
 .toast {
