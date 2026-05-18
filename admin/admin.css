@@ -295,6 +295,35 @@ main#content { padding: 18px 16px; max-width: 700px; margin: 0 auto; }
   opacity: 0.55; border-style: dashed;
   color: #8a6520; border-color: rgba(201,154,75,0.5);
 }
+.wa-templates .btn.tpl-highlight {
+  background: #fff8ec; border-color: var(--brass);
+  color: #8a5a1a; font-weight: 600;
+}
+
+/* --- Reminders banner --- */
+.reminders-banner {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  background: #fff7e1; border: 1px solid var(--brass);
+  color: #6b4a1e; padding: 10px 14px; border-radius: 12px;
+  margin: 10px 0 12px;
+}
+.reminders-banner.urgent {
+  background: #fde9e3; border-color: #d97a4a; color: #8a3a18;
+}
+.reminders-banner .rb-text { font-size: 0.9rem; line-height: 1.35; font-weight: 500; }
+.reminders-banner .btn { white-space: nowrap; flex-shrink: 0; }
+
+/* Stale / urgent row accents */
+.row.is-stale  { border-left: 4px solid var(--brass); }
+.row.is-urgent { border-left: 4px solid #d97a4a; background: #fff8f4; }
+
+/* Stale / urgent pills */
+.pill.pill-stale  { background: #fff3d6; color: #8a6520; border: 1px solid rgba(201,154,75,0.45); }
+.pill.pill-urgent { background: #fde0d4; color: #8a3a18; border: 1px solid rgba(217,122,74,0.55); }
+
+/* Reminders chip in the quick filter strip */
+.qf-btn.qf-warn { border-color: var(--brass); color: #8a6520; }
+.qf-btn.qf-warn.active { background: var(--brass); border-color: var(--brass); color: #fff; }
 
 /* --- Toast --- */
 .toast {

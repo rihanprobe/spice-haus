@@ -16,8 +16,73 @@ let state = {
   expenses: [],
   today: null,
   currentOrder: null,
-  quickFilter: 'all'   // 'all' | 'unpaid' | 'today' | 'ready' | 'out'
+  quickFilter: 'all'   // 'all' | 'unpaid' | 'today' | 'ready' | 'out' | 'stale'
 };
+
+/* Reminder thresholds (hours) */
+const REMINDER_STALE_HOURS  = 12;   // unpaid OR unconfirmed older than this → ⏰ stale
+const REMINDER_URGENT_HOURS = 24;   // delivery within this AND still unpaid → 🚨 urgent
+
+/* Compute staleness for an order. Returns 'urgent' | 'stale' | null.
+   - urgent: delivery is within REMINDER_URGENT_HOURS AND payment not Received
+   - stale:  order older than REMINDER_STALE_HOURS AND (unpaid or unconfirmed) */
+function staleness(o) {
+  const pay = o.payment_status || 'Pending';
+  const del = o.delivery_status || o.status || 'New';
+  if (del === 'Delivered' || del === 'Cancelled') return null;
+
+  const now = Date.now();
+  const isUnpaid       = pay !== 'Received';
+  const isUnconfirmed  = (del === 'New' || del === 'Confirmed');
+
+  // urgent: delivery datetime within next 24h AND still unpaid
+  const deliveryAt = parseOrderDateTime(o.date, o.time);
+  if (deliveryAt && isUnpaid) {
+    const diffH = (deliveryAt - now) / 36e5;
+    if (diffH >= -1 && diffH <= REMINDER_URGENT_HOURS) return 'urgent';
+  }
+
+  // stale: order placed > 12h ago AND still unpaid OR unconfirmed
+  const placedAt = o.timestamp ? new Date(o.timestamp).getTime() : NaN;
+  if (!isNaN(placedAt) && (now - placedAt) / 36e5 > REMINDER_STALE_HOURS && (isUnpaid || isUnconfirmed)) {
+    return 'stale';
+  }
+  return null;
+}
+
+/* Parse the sheet's Date + Time fields into a single ms timestamp in Dubai-local time.
+   Returns NaN-equivalent (null) if it can't parse. */
+function parseOrderDateTime(dateField, timeField) {
+  if (!dateField) return null;
+  const ymd = isoFromDateField(dateField);
+  if (!ymd) return null;
+  // time field could be 'HH:MM', '19:00', '7:00 PM', or a full Date string
+  let hh = 12, mm = 0;
+  if (timeField) {
+    const s = String(timeField);
+    const m = s.match(/(\d{1,2})\s*[:.]\s*(\d{2})\s*(am|pm|AM|PM)?/);
+    if (m) {
+      hh = parseInt(m[1], 10);
+      mm = parseInt(m[2], 10);
+      const ap = (m[3] || '').toLowerCase();
+      if (ap === 'pm' && hh < 12) hh += 12;
+      if (ap === 'am' && hh === 12) hh = 0;
+    } else {
+      const d = new Date(s);
+      if (!isNaN(d)) {
+        // Use Dubai-local hours/minutes from the parsed Date
+        const parts = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Dubai', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(d);
+        const hp = parts.find(p => p.type === 'hour'); const mp = parts.find(p => p.type === 'minute');
+        if (hp) hh = parseInt(hp.value, 10);
+        if (mp) mm = parseInt(mp.value, 10);
+      }
+    }
+  }
+  // Build an ISO string in Dubai offset (+04:00, no DST in UAE)
+  const iso = `${ymd}T${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}:00+04:00`;
+  const t = new Date(iso).getTime();
+  return isNaN(t) ? null : t;
+}
 
 /* Quick-filter predicate */
 function matchesQuickFilter(o, qf) {
@@ -32,6 +97,7 @@ function matchesQuickFilter(o, qf) {
   }
   if (qf === 'ready') return del === 'Ready';
   if (qf === 'out')   return del === 'Out for delivery';
+  if (qf === 'stale') return staleness(o) !== null;
   return true;
 }
 
@@ -48,18 +114,37 @@ function isoFromDateField(s) {
 }
 
 function updateQuickFilterCounts() {
-  const counts = { all: 0, unpaid: 0, today: 0, ready: 0, out: 0 };
+  const counts = { all: 0, unpaid: 0, today: 0, ready: 0, out: 0, stale: 0, urgent: 0 };
   state.orders.forEach(o => {
     counts.all++;
     if (matchesQuickFilter(o, 'unpaid')) counts.unpaid++;
     if (matchesQuickFilter(o, 'today'))  counts.today++;
     if (matchesQuickFilter(o, 'ready'))  counts.ready++;
     if (matchesQuickFilter(o, 'out'))    counts.out++;
+    const s = staleness(o);
+    if (s) counts.stale++;
+    if (s === 'urgent') counts.urgent++;
   });
   Object.keys(counts).forEach(k => {
     const el = document.querySelector(`[data-qf-count="${k}"]`);
     if (el) el.textContent = counts[k];
   });
+  // Reminders banner
+  const banner = document.getElementById('remindersBanner');
+  const bText  = document.getElementById('rb-text');
+  if (banner && bText) {
+    if (counts.stale === 0) {
+      banner.hidden = true;
+    } else {
+      banner.hidden = false;
+      banner.classList.toggle('urgent', counts.urgent > 0);
+      const parts = [];
+      if (counts.urgent > 0) parts.push(`🚨 ${counts.urgent} urgent (delivery within 24h, unpaid)`);
+      const others = counts.stale - counts.urgent;
+      if (others > 0) parts.push(`⏰ ${others} stale (>12h, unpaid or unconfirmed)`);
+      bText.textContent = parts.join('  ·  ');
+    }
+  }
 }
 
 /* ---------- Auth ---------- */
@@ -167,6 +252,11 @@ function renderOrders() {
   $('#ordersList').innerHTML = list.map(o => {
     const pay = o.payment_status || 'Pending';
     const del = o.delivery_status || o.status || 'New';
+    const stale = staleness(o);     // null | 'stale' | 'urgent'
+    const rowCls = 'row' + (stale ? ' is-' + stale : '');
+    const stalePill = stale === 'urgent'
+      ? '<span class="pill pill-urgent">🚨 Urgent</span>'
+      : stale === 'stale' ? '<span class="pill pill-stale">⏰ Reminder</span>' : '';
 
     // Decide which quick-action to show as the primary green button
     let primary = '';
@@ -183,13 +273,14 @@ function renderOrders() {
     }
 
     return `
-    <div class="row" data-order="${escapeHtml(o.order_number)}">
+    <div class="${rowCls}" data-order="${escapeHtml(o.order_number)}">
       <div class="row-top">
         <div>
           <div class="row-name">${escapeHtml(o.first_name + ' ' + o.last_name).trim() || '—'}</div>
           <div class="row-meta">${escapeHtml(o.order_number)} · ${escapeHtml(o.phone)}</div>
         </div>
         <div class="pill-stack">
+          ${stalePill}
           <span class="pill pay-${cssClass(pay)}">💰 ${escapeHtml(pay)}</span>
           <span class="pill ${cssClass(del)}">🚚 ${escapeHtml(del)}</span>
         </div>
@@ -298,20 +389,25 @@ function openOrder(orderNumber) {
   $('#om-payment-ref').value     = o.payment_ref     || '';
   $('#om-delivery-status').value = o.delivery_status || o.status || 'New';
 
-  // Render WhatsApp templates. Each entry: [label, message, gateFn(o)] where gateFn
+  // Render WhatsApp templates. Each entry: [label, message, gateFn(o), highlight?] where gateFn
   // returns a string warning if the template shouldn't be sent yet (null = OK).
   const paid = (o.payment_status === 'Received');
+  const stale = staleness(o);
   const tpls = [
     ['Confirm order',        confirmTemplate(o),         () => paid ? null : 'Payment is still Pending. Are you sure you want to send the confirmation (which thanks the customer for paying)?'],
+    [stale === 'urgent' ? '🚨 Urgent reminder' : '⏰ Send reminder',
+                             reminderTemplate(o, stale), () => null,                                                                  !!stale],
     ['Ask payment',          paymentTemplate(o),         () => null],
     ['Ready for pickup',     readyPickupTemplate(o),     () => paid ? null : 'This customer has not paid yet. Send anyway?'],
     ['Out for delivery',     outForDeliveryTemplate(o),  () => paid ? null : 'This customer has not paid yet. Send anyway?'],
     ['Delivered — thank you', thankYouTemplate(o),        () => null],
     ['Follow-up next week',  followUpTemplate(o),        () => null]
   ];
-  $('#om-templates').innerHTML = tpls.map(([label, msg, gateFn], i) => {
+  $('#om-templates').innerHTML = tpls.map(([label, msg, gateFn, highlight], i) => {
     const blocked = (i === 0) && !paid;  // Confirm order gets a soft-disabled look when unpaid
-    const cls = 'btn ghost' + (blocked ? ' tpl-gated' : '');
+    let cls = 'btn ghost';
+    if (blocked)   cls += ' tpl-gated';
+    if (highlight) cls += ' tpl-highlight';
     const title = blocked ? 'Payment still pending — click to override' : '';
     return `<button type="button" class="${cls}" data-msg-i="${i}" title="${title}">${label}${blocked ? ' 🔒' : ''}</button>`;
   }).join('');
@@ -365,6 +461,29 @@ function confirmTemplate(o) {
   const time = cleanTime(o.time);
   return `${greet(o)}\n\nWe've received your payment — thank you! 🙏\n\nYour order *${o.order_number}* is confirmed:\n\n• ${o.meat} — ${o.quantity}kg\n• ${o.method}${o.city ? ' to ' + o.city : ''}\n• ${date}${time ? ' at ' + time : ''}\n• Total: AED ${fmt(o.total)}\n\nWe'll start your slow-cooked bhuna and message you the moment it's ready.${bizSig()}`;
 }
+function reminderTemplate(o, kind) {
+  const date = cleanDate(o.date);
+  const time = cleanTime(o.time);
+  const when = date + (time ? ' at ' + time : '');
+  const paid = (o.payment_status === 'Received');
+  const del  = o.delivery_status || o.status || 'New';
+
+  // Urgent: delivery within 24h, still unpaid
+  if (kind === 'urgent' && !paid) {
+    return `${greet(o)}\n\nA gentle reminder — your order *${o.order_number}* (${o.meat} ${o.quantity}kg, AED ${fmt(o.total)}) is scheduled for *${when}*, but we haven't received your payment yet.\n\nTo keep your slot, kindly transfer to:\n\n🏦 *RAK Bank*\nName: Mohamed Rihan Abdul Karim Rihan Abdul Karim Chougle\nIBAN: AE74 0400 0003 7201 1779 001\n\nPlease share the screenshot once done. If you'd like to reschedule, just let me know. 🙏${bizSig()}`;
+  }
+  // Unpaid (>12h) but no near delivery
+  if (!paid) {
+    return `${greet(o)}\n\nJust a friendly nudge on your order *${o.order_number}* (${o.meat} ${o.quantity}kg, AED ${fmt(o.total)}).\n\nWe haven't received the payment yet — once it's in, we'll lock in your slot for *${when}*.\n\n🏦 *RAK Bank* · IBAN: AE74 0400 0003 7201 1779 001\nName: Mohamed Rihan Abdul Karim Rihan Abdul Karim Chougle\n\nShare the screenshot when ready. Thank you 🙏${bizSig()}`;
+  }
+  // Paid but unconfirmed delivery state
+  if (del === 'New' || del === 'Confirmed') {
+    return `${greet(o)}\n\nQuick confirmation — your order *${o.order_number}* (${o.meat} ${o.quantity}kg) is on our list for *${when}*.\n\nWe'll message you the moment it's freshly cooked and ready. Thank you for your patience! 🙏${bizSig()}`;
+  }
+  // Fallback
+  return `${greet(o)}\n\nA quick reminder about your order *${o.order_number}* scheduled for *${when}*. Please let us know if anything's changed.${bizSig()}`;
+}
+
 function paymentTemplate(o) {
   return `${greet(o)}\n\nTo confirm your order ${o.order_number} (AED ${fmt(o.total)}), please transfer the amount to:\n\n🏦 *The National Bank of Ras Al Khaimah (P.S.C.)*\nName: Mohamed Rihan Abdul Karim Rihan Abdul Karim Chougle\nAccount: 0372011779001\nIBAN: AE74 0400 0003 7201 1779 001\nSWIFT: NRAKAEAK\n\nKindly share the payment screenshot once done — your bhuna will be on the way shortly.\n\nThank you 🙏${bizSig()}`;
 }
@@ -613,6 +732,16 @@ function init() {
       if (!btn) return;
       state.quickFilter = btn.dataset.qf;
       $$('#quickFilters .qf-btn').forEach(b => b.classList.toggle('active', b === btn));
+      renderOrders();
+    });
+  }
+
+  // Reminders banner → jump to the Reminders filter
+  const rbBtn = document.getElementById('rb-filter');
+  if (rbBtn) {
+    rbBtn.addEventListener('click', () => {
+      state.quickFilter = 'stale';
+      $$('#quickFilters .qf-btn').forEach(b => b.classList.toggle('active', b.dataset.qf === 'stale'));
       renderOrders();
     });
   }
