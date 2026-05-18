@@ -852,6 +852,7 @@ function generateInvoicePDF(o) {
   // ===== PAYMENT INFO BLOCK =====
   const paid = (o.payment_status === 'Received');
   y += 44;
+  const payBlockTop = y;
   doc.setDrawColor(...BRASS);
   doc.setFillColor(255, 248, 236);
   doc.roundedRect(MARGIN, y, PAGE_W - 2 * MARGIN, 110, 8, 8, 'FD');
@@ -881,37 +882,29 @@ function generateInvoicePDF(o) {
     doc.setFontSize(9);
     doc.text('Please share the payment screenshot via WhatsApp once done.', MARGIN + 14, y + 100);
   }
-  y += 130;
 
   // ===== CIRCULAR PAID STAMP (only if paid) =====
+  // Placed on the right side of the payment block so the block + stamp share the same vertical space.
   if (paid) {
     const cx = PAGE_W - MARGIN - 50;
-    const cy = y + 22;
-    doc.saveGraphicsState && doc.saveGraphicsState();
+    const cy = payBlockTop + 55;
     doc.setDrawColor(120, 160, 90); // green
     doc.setTextColor(120, 160, 90);
-    doc.setLineWidth(2.2);
-    doc.circle(cx, cy, 38, 'S');
-    doc.setLineWidth(0.8);
-    doc.circle(cx, cy, 32, 'S');
+    doc.setLineWidth(2);
+    doc.circle(cx, cy, 34, 'S');
+    doc.setLineWidth(0.7);
+    doc.circle(cx, cy, 29, 'S');
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(18);
+    doc.setFontSize(16);
     doc.text('PAID', cx, cy + 2, { align: 'center' });
-    doc.setFontSize(9);
+    doc.setFontSize(7);
     doc.setFont('helvetica', 'normal');
-    doc.text('✓ received', cx, cy + 16, { align: 'center' });
-    doc.restoreGraphicsState && doc.restoreGraphicsState();
-    // Date below the stamp
-    if (o.payment_ref) {
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(7);
-      doc.setTextColor(...MUTED);
-      doc.text('Ref: ' + String(o.payment_ref).slice(0, 18), cx, cy + 50, { align: 'center' });
-    }
+    doc.text('RECEIVED', cx, cy + 13, { align: 'center' });
   }
+  y += 130;
 
   // ===== FEEDBACK BOX =====
-  const fbY = y + (paid ? 70 : 10);
+  const fbY = y + 10;
   doc.setDrawColor(...BRASS);
   doc.setFillColor(255, 251, 244);
   doc.roundedRect(MARGIN, fbY, PAGE_W - 2 * MARGIN, 70, 8, 8, 'FD');
