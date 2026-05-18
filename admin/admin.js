@@ -511,7 +511,7 @@ function openWhatsApp(phone, message) {
 
 /* WhatsApp templates (English; you can edit any time) */
 function greet(o)  { return `Hi ${o.first_name || 'there'},`; }
-function bizSig()  { return `\n\n— ${CONFIG.BIZ_NAME}`; }
+function bizSig()  { return `\n\n- ${CONFIG.BIZ_NAME}`; }
 
 /* Strip any raw "Date" / "GMT" / Arabic timezone tail that may sneak through
    if the Sheet returned a Date object. Also remove "(توقيت الخليج)" tails. */
@@ -539,7 +539,7 @@ function cleanTime(s) {
 function confirmTemplate(o) {
   const date = cleanDate(o.date);
   const time = cleanTime(o.time);
-  return `${greet(o)}\n\nWe've received your payment — thank you! 🙏\n\nYour order *${o.order_number}* is confirmed:\n\n• ${o.meat} — ${o.quantity}kg\n• ${o.method}${o.city ? ' to ' + o.city : ''}\n• ${date}${time ? ' at ' + time : ''}\n• Total: AED ${fmt(o.total)}\n\nWe'll start your slow-cooked bhuna and message you the moment it's ready.${bizSig()}`;
+  return `${greet(o)}\n\nWe've received your payment - thank you! 🙏\n\nYour order *${o.order_number}* is confirmed:\n\n• ${o.meat} - ${o.quantity}kg\n• ${o.method}${o.city ? ' to ' + o.city : ''}\n• ${date}${time ? ' at ' + time : ''}\n• Total: AED ${fmt(o.total)}\n\nWe'll start your slow-cooked bhuna and message you the moment it's ready.${bizSig()}`;
 }
 function reminderTemplate(o, kind) {
   const date = cleanDate(o.date);
@@ -550,22 +550,22 @@ function reminderTemplate(o, kind) {
 
   // Urgent: delivery within 24h, still unpaid
   if (kind === 'urgent' && !paid) {
-    return `${greet(o)}\n\nA gentle reminder — your order *${o.order_number}* (${o.meat} ${o.quantity}kg, AED ${fmt(o.total)}) is scheduled for *${when}*, but we haven't received your payment yet.\n\nTo keep your slot, kindly transfer to:\n\n🏦 *RAK Bank*\nName: Mohamed Rihan Abdul Karim Rihan Abdul Karim Chougle\nIBAN: AE74 0400 0003 7201 1779 001\n\nPlease share the screenshot once done. If you'd like to reschedule, just let me know. 🙏${bizSig()}`;
+    return `${greet(o)}\n\nA gentle reminder - your order *${o.order_number}* (${o.meat} ${o.quantity}kg, AED ${fmt(o.total)}) is scheduled for *${when}*, but we haven't received your payment yet.\n\nTo keep your slot, kindly transfer to:\n\n🏦 *RAK Bank*\nName: Mohamed Rihan Abdul Karim Rihan Abdul Karim Chougle\nIBAN: AE74 0400 0003 7201 1779 001\n\nPlease share the screenshot once done. If you'd like to reschedule, just let me know. 🙏${bizSig()}`;
   }
   // Unpaid (>12h) but no near delivery
   if (!paid) {
-    return `${greet(o)}\n\nJust a friendly nudge on your order *${o.order_number}* (${o.meat} ${o.quantity}kg, AED ${fmt(o.total)}).\n\nWe haven't received the payment yet — once it's in, we'll lock in your slot for *${when}*.\n\n🏦 *RAK Bank* · IBAN: AE74 0400 0003 7201 1779 001\nName: Mohamed Rihan Abdul Karim Rihan Abdul Karim Chougle\n\nShare the screenshot when ready. Thank you 🙏${bizSig()}`;
+    return `${greet(o)}\n\nJust a friendly nudge on your order *${o.order_number}* (${o.meat} ${o.quantity}kg, AED ${fmt(o.total)}).\n\nWe haven't received the payment yet - once it's in, we'll lock in your slot for *${when}*.\n\n🏦 *RAK Bank* | IBAN: AE74 0400 0003 7201 1779 001\nName: Mohamed Rihan Abdul Karim Rihan Abdul Karim Chougle\n\nShare the screenshot when ready. Thank you 🙏${bizSig()}`;
   }
   // Paid but unconfirmed delivery state
   if (del === 'New' || del === 'Confirmed') {
-    return `${greet(o)}\n\nQuick confirmation — your order *${o.order_number}* (${o.meat} ${o.quantity}kg) is on our list for *${when}*.\n\nWe'll message you the moment it's freshly cooked and ready. Thank you for your patience! 🙏${bizSig()}`;
+    return `${greet(o)}\n\nQuick confirmation - your order *${o.order_number}* (${o.meat} ${o.quantity}kg) is on our list for *${when}*.\n\nWe'll message you the moment it's freshly cooked and ready. Thank you for your patience! 🙏${bizSig()}`;
   }
   // Fallback
   return `${greet(o)}\n\nA quick reminder about your order *${o.order_number}* scheduled for *${when}*. Please let us know if anything's changed.${bizSig()}`;
 }
 
 function paymentTemplate(o) {
-  return `${greet(o)}\n\nTo confirm your order ${o.order_number} (AED ${fmt(o.total)}), please transfer the amount to:\n\n🏦 *The National Bank of Ras Al Khaimah (P.S.C.)*\nName: Mohamed Rihan Abdul Karim Rihan Abdul Karim Chougle\nAccount: 0372011779001\nIBAN: AE74 0400 0003 7201 1779 001\nSWIFT: NRAKAEAK\n\nKindly share the payment screenshot once done — your bhuna will be on the way shortly.\n\nThank you 🙏${bizSig()}`;
+  return `${greet(o)}\n\nTo confirm your order ${o.order_number} (AED ${fmt(o.total)}), please transfer the amount to:\n\n🏦 *The National Bank of Ras Al Khaimah (P.S.C.)*\nName: Mohamed Rihan Abdul Karim Rihan Abdul Karim Chougle\nAccount: 0372011779001\nIBAN: AE74 0400 0003 7201 1779 001\nSWIFT: NRAKAEAK\n\nKindly share the payment screenshot once done - your bhuna will be on the way shortly.\n\nThank you 🙏${bizSig()}`;
 }
 function readyPickupTemplate(o) {
   const time = cleanTime(o.time);
@@ -576,10 +576,10 @@ function outForDeliveryTemplate(o) {
   return `${greet(o)}\n\nYour order *${o.order_number}* is on the way to ${o.city || 'you'}${time ? ' for ' + time : ''}. ETA in ~30 minutes.\n\nDriver will WhatsApp you on arrival.${bizSig()}`;
 }
 function thankYouTemplate(o) {
-  return `${greet(o)}\n\nHope you enjoyed your bhuna gosht. 🙏\n\nA small reminder — 10% of every order goes back to those in need, so thank you for being part of that.\n\nIf you have a moment, we'd love to hear your honest feedback — just reply to this message. It helps us cook better and keeps our little kitchen going.${bizSig()}`;
+  return `${greet(o)}\n\nHope you enjoyed your bhuna gosht. 🙏\n\nA small reminder - 10% of every order goes back to those in need, so thank you for being part of that.\n\nIf you have a moment, we'd love to hear your honest feedback - just reply to this message. It helps us cook better and keeps our little kitchen going.${bizSig()}`;
 }
 function followUpTemplate(o) {
-  return `${greet(o)}\n\nA quick hello from our kitchen — we hope you and your family are doing well.\n\nNo occasion, just wanted to thank you again for trusting us with your last meal. It meant a lot.\n\nWhenever you'd like us to cook for you again, we're here.\n\nWarmly,\nSpice Haus`;
+  return `${greet(o)}\n\nA quick hello from our kitchen - we hope you and your family are doing well.\n\nNo occasion, just wanted to thank you again for trusting us with your last meal. It meant a lot.\n\nWhenever you'd like us to cook for you again, we're here.\n\nWarmly,\nSpice Haus`;
 }
 
 /* Custom message */
