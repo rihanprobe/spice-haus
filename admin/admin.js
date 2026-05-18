@@ -173,21 +173,50 @@ async function tryLogin(pwd) {
   if (data && data.ok) {
     saveKey(pwd);
     state.today = data;
+    // Pre-warm cache so refreshToday() doesn't re-fetch immediately after login
+    _apiCache.set('admin_today', { ts: Date.now(), data });
     return true;
   }
   throw new Error(data && data.error ? data.error : 'Wrong password');
 }
 
 /* ---------- API helpers ---------- */
-async function apiGet(action) {
+/* In-memory response cache + in-flight dedupe.
+   - Returns cached payload if same action was fetched < TTL ms ago.
+   - Coalesces concurrent identical requests so we never fire duplicates.
+   - apiInvalidate(action|'all') clears entries after writes. */
+const API_CACHE_TTL = 60 * 1000; // 60s
+const _apiCache = new Map();    // action -> { ts, data }
+const _apiInFlight = new Map(); // action -> Promise
+function apiInvalidate(action) {
+  if (action === 'all') { _apiCache.clear(); return; }
+  _apiCache.delete(action);
+}
+async function apiGet(action, opts) {
+  opts = opts || {};
+  const force = !!opts.force;
+  if (!force) {
+    const cached = _apiCache.get(action);
+    if (cached && (Date.now() - cached.ts) < API_CACHE_TTL) return cached.data;
+    const inflight = _apiInFlight.get(action);
+    if (inflight) return inflight;
+  }
   const url = CONFIG.WEBHOOK + '?action=' + action + '&key=' + encodeURIComponent(state.key);
-  const res = await fetch(url, { method: 'GET', redirect: 'follow' });
-  const data = await res.json().catch(() => ({}));
-  if (!data.ok) throw new Error(data.error || 'Request failed');
-  return data;
+  const p = fetch(url, { method: 'GET', redirect: 'follow' })
+    .then(r => r.json().catch(() => ({})))
+    .then(data => {
+      if (!data.ok) throw new Error(data.error || 'Request failed');
+      _apiCache.set(action, { ts: Date.now(), data });
+      return data;
+    })
+    .finally(() => { _apiInFlight.delete(action); });
+  _apiInFlight.set(action, p);
+  return p;
 }
 async function apiPost(payload) {
   // Apps Script POST doesn't like custom Content-Type with CORS; use text/plain
+  // Writes always invalidate the GET cache so next read fetches fresh data.
+  apiInvalidate('all');
   const body = JSON.stringify(Object.assign({ key: state.key }, payload));
   const res = await fetch(CONFIG.WEBHOOK, {
     method: 'POST',
@@ -212,31 +241,47 @@ function showTab(name) {
 }
 
 /* ---------- TODAY ---------- */
+function paintToday(data) {
+  if (!data) return;
+  $('#todayDate').textContent = formatDate(data.date);
+  $('#kpiOrders').textContent   = data.orders_today;
+  $('#kpiRevenue').textContent  = fmt(data.revenue_today);
+  $('#kpiExpenses').textContent = fmt(data.expenses_today);
+  $('#kpiNet').textContent      = fmt(data.net_today);
+  $('#kpiCharity').textContent  = fmt(data.charity_today);
+  $('#kpiPending').textContent  = data.orders_pending;
+}
 async function refreshToday() {
+  // Paint cached data instantly if we have it
+  if (state.today) paintToday(state.today);
   try {
     const data = await apiGet('admin_today');
     state.today = data;
-    $('#todayDate').textContent = formatDate(data.date);
-    $('#kpiOrders').textContent   = data.orders_today;
-    $('#kpiRevenue').textContent  = fmt(data.revenue_today);
-    $('#kpiExpenses').textContent = fmt(data.expenses_today);
-    $('#kpiNet').textContent      = fmt(data.net_today);
-    $('#kpiCharity').textContent  = fmt(data.charity_today);
-    $('#kpiPending').textContent  = data.orders_pending;
+    paintToday(data);
   } catch (e) {
-    toast('Could not load today: ' + e.message);
+    if (!state.today) toast('Could not load today: ' + e.message);
   }
 }
 
 /* ---------- ORDERS ---------- */
 async function refreshOrders() {
-  $('#ordersList').innerHTML = '<div class="empty">Loading…</div>';
+  const hasCached = state.orders && state.orders.length;
+  if (hasCached) {
+    // Render cached immediately, refresh in background
+    renderOrders();
+  } else {
+    $('#ordersList').innerHTML = '<div class="empty">Loading…</div>';
+  }
   try {
     const data = await apiGet('admin_orders');
     state.orders = data.orders || [];
     renderOrders();
   } catch (e) {
-    $('#ordersList').innerHTML = '<div class="empty">Could not load orders: ' + escapeHtml(e.message) + '</div>';
+    if (!hasCached) {
+      $('#ordersList').innerHTML = '<div class="empty">Could not load orders: ' + escapeHtml(e.message) + '</div>';
+    } else {
+      toast('Could not refresh: ' + e.message);
+    }
   }
 }
 
@@ -1095,13 +1140,22 @@ td .sub { color: #888; font-size: 10px; margin-top: 3px; }
 
 /* ---------- EXPENSES ---------- */
 async function refreshExpenses() {
-  $('#expensesList').innerHTML = '<div class="empty">Loading…</div>';
+  const hasCached = state.expenses && state.expenses.length;
+  if (hasCached) {
+    renderExpenses();
+  } else {
+    $('#expensesList').innerHTML = '<div class="empty">Loading…</div>';
+  }
   try {
     const data = await apiGet('admin_expenses');
     state.expenses = data.expenses || [];
     renderExpenses();
   } catch (e) {
-    $('#expensesList').innerHTML = '<div class="empty">Could not load expenses: ' + escapeHtml(e.message) + '</div>';
+    if (!hasCached) {
+      $('#expensesList').innerHTML = '<div class="empty">Could not load expenses: ' + escapeHtml(e.message) + '</div>';
+    } else {
+      toast('Could not refresh: ' + e.message);
+    }
   }
 }
 function renderExpenses() {
@@ -1777,6 +1831,16 @@ function init() {
     if (['today','orders','customers','reports','expenses'].indexOf(name) >= 0) showTab(name);
   });
 
+  // Manual refresh button (forces a fresh fetch)
+  const refreshBtn = $('#ordersRefresh');
+  if (refreshBtn) refreshBtn.addEventListener('click', async () => {
+    refreshBtn.disabled = true; const old = refreshBtn.textContent; refreshBtn.textContent = 'Refreshing…';
+    apiInvalidate('admin_orders');
+    apiInvalidate('admin_today');
+    await refreshOrders();
+    refreshBtn.disabled = false; refreshBtn.textContent = old;
+  });
+
   // Order filters
   $('#orderSearch').addEventListener('input', renderOrders);
   $('#orderStatusFilter').addEventListener('change', renderOrders);
@@ -1817,12 +1881,15 @@ function init() {
 }
 
 async function enterApp() {
-  // Verify the saved key works (in case it changed)
-  try {
-    await apiGet('admin_today');
-  } catch (e) {
-    clearKey();
-    return; // stay on login screen
+  // If we just logged in, tryLogin already populated state.today + cache,
+  // so no verification call is needed. Only verify when restoring a saved key.
+  if (!state.today) {
+    try {
+      await apiGet('admin_today');
+    } catch (e) {
+      clearKey();
+      return; // stay on login screen
+    }
   }
   $('#loginScreen').hidden = true;
   $('#appShell').hidden = false;

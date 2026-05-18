@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./admin.css?v=20260518c" />
+<link rel="stylesheet" href="./admin.css?v=20260518d" />
 </head>
 <body>
 
@@ -94,7 +94,10 @@
 
     <!-- ORDERS -->
     <section data-tab="orders" class="tab" hidden>
-      <h2>Orders</h2>
+      <div class="tab-head">
+        <h2>Orders</h2>
+        <button type="button" class="btn ghost small" id="ordersRefresh" aria-label="Refresh" title="Refresh">↻ Refresh</button>
+      </div>
       <div id="remindersBanner" class="reminders-banner" hidden>
         <div class="rb-text" id="rb-text"></div>
         <button type="button" class="btn ghost small" id="rb-filter">Show only</button>
@@ -345,7 +348,7 @@
 <div id="toast" class="toast" hidden></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="./invoice-logo.js?v=20260518c"></script>
-<script src="./admin.js?v=20260518c"></script>
+<script src="./invoice-logo.js?v=20260518d"></script>
+<script src="./admin.js?v=20260518d"></script>
 </body>
 </html>
