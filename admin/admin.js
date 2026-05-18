@@ -1325,7 +1325,13 @@ function renderCustomers() {
   $('#customersList').innerHTML = list.map(c => {
     const repeatPill = c.order_count > 1 ? '<span class="pill pill-repeat">🔁 Repeat</span>' : '';
     const vipPill = c.total_spend >= 500 ? '<span class="pill pill-vip">⭐ VIP</span>' : '';
-    const last = c.last_order_date ? cleanDate(c.last_order_date) : '—';
+    // Short date only (no time) for the row to avoid wrap
+    let last = '—';
+    if (c.last_order_date) {
+      const dt = new Date(c.last_order_date);
+      last = isNaN(dt) ? cleanDate(c.last_order_date)
+        : dt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    }
     const cityLine = c.cities.size ? Array.from(c.cities).join(', ') : '';
     return `
       <div class="row cust-row" data-phone="${escapeHtml(c.phone)}">

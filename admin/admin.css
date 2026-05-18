@@ -237,14 +237,15 @@ main#content { padding: 18px 16px; max-width: 700px; margin: 0 auto; }
 .tabbar {
   position: fixed; bottom: 0; left: 0; right: 0;
   background: var(--cream); border-top: 1px solid var(--line);
-  display: grid; grid-template-columns: 1fr 1fr 1fr; padding: 8px 6px;
+  display: grid; grid-template-columns: repeat(4, 1fr); padding: 8px 4px;
   padding-bottom: calc(8px + env(safe-area-inset-bottom));
   z-index: 20;
 }
 .tab-btn {
   background: transparent; border: 0; font: inherit;
-  color: var(--ink-500); padding: 8px 4px; cursor: pointer;
+  color: var(--ink-500); padding: 8px 2px; cursor: pointer;
   font-size: 0.85rem; font-weight: 600;
+  white-space: nowrap;
 }
 .tab-btn.active { color: var(--teal-dark); }
 .tab-btn.active span { border-bottom: 2px solid var(--brass); padding-bottom: 4px; }
