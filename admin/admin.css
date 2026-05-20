@@ -491,3 +491,46 @@ main#content { padding: 18px 16px; max-width: 700px; margin: 0 auto; }
   resize: vertical;
 }
 .fb-row textarea:focus { outline: none; border-color: var(--brass); }
+
+/* ---- Expense multi-item form ---- */
+.row-2cols { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: end; }
+.ex-items { display: flex; flex-direction: column; gap: 8px; }
+.ex-item {
+  display: grid;
+  grid-template-columns: 2fr 0.8fr 0.7fr 0.9fr 0.9fr 28px;
+  gap: 6px;
+  align-items: center;
+}
+.ex-item input, .ex-item select {
+  width: 100%;
+  padding: 8px 9px;
+  border: 1.5px solid var(--line);
+  border-radius: 7px;
+  background: var(--cream);
+  font: inherit;
+  font-size: 0.9rem;
+}
+.ex-item .ex-line-total { background: rgba(45,95,93,0.05); font-weight: 600; }
+.ex-item .ex-remove {
+  width: 28px; height: 28px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: none; background: transparent; cursor: pointer;
+  color: #c44; font-size: 1.2rem; padding: 0; border-radius: 4px;
+}
+.ex-item .ex-remove:hover { background: rgba(196,68,68,0.1); }
+.ex-item-head {
+  display: grid;
+  grid-template-columns: 2fr 0.8fr 0.7fr 0.9fr 0.9fr 28px;
+  gap: 6px;
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0 2px;
+}
+@media (max-width: 600px) {
+  .ex-item, .ex-item-head { grid-template-columns: 1fr 1fr; }
+  .ex-item-head > *:nth-child(n+3) { display: none; }
+  .ex-item .ex-remove { grid-column: 2; justify-self: end; }
+}

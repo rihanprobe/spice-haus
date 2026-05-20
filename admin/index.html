@@ -223,18 +223,28 @@
       <label>Date</label>
       <input type="date" id="ex-date" required />
 
-      <label>Category</label>
-      <select id="ex-category" required>
-        <option>Meat</option><option>Groceries</option><option>Spices</option>
-        <option>Packaging</option><option>Fuel</option><option>Gas</option>
-        <option>Marketing</option><option>Equipment</option><option>Other</option>
-      </select>
-
-      <label>Amount (AED)</label>
-      <input type="number" id="ex-amount" step="0.01" min="0" required inputmode="decimal" />
+      <div class="row-2cols">
+        <div>
+          <label>Category</label>
+          <select id="ex-category" required></select>
+        </div>
+        <div style="display:flex; align-items:flex-end;">
+          <button type="button" id="ex-manage-cats" class="btn ghost small">Manage categories</button>
+        </div>
+      </div>
 
       <label>Vendor / supplier <span class="muted small">optional</span></label>
-      <input type="text" id="ex-vendor" placeholder="e.g. Carrefour, Lulu" />
+      <input type="text" id="ex-vendor" placeholder="e.g. Meat One, Carrefour, Lulu" />
+
+      <label>Items <span class="muted small">add one row per product on the invoice</span></label>
+      <div id="ex-items" class="ex-items"></div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin: 6px 0 12px;">
+        <button type="button" id="ex-add-item" class="btn ghost small">+ Add item</button>
+        <div class="muted small">Items total: <strong>AED <span id="ex-items-total">0.00</span></strong></div>
+      </div>
+
+      <label>Total amount (AED) <span class="muted small">auto-calculated from items — edit only to override</span></label>
+      <input type="number" id="ex-amount" step="0.01" min="0" required inputmode="decimal" />
 
       <label>Notes <span class="muted small">optional</span></label>
       <input type="text" id="ex-notes" placeholder="e.g. for Saturday cook" />

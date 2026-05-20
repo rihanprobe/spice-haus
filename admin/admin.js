@@ -1202,17 +1202,164 @@ function renderExpenses() {
 }
 
 /* ---------- EXPENSE MODAL ---------- */
+const DEFAULT_CATEGORIES = ['Meat','Groceries','Spices','Packaging','Fuel','Gas','Marketing','Equipment','Other'];
+const UNIT_OPTIONS = ['kg','g','L','ml','pcs','packet','can','bag','bottle','box'];
+let _expenseCategories = null;
+
+function getCachedCategories() {
+  if (_expenseCategories && _expenseCategories.length) return _expenseCategories;
+  try {
+    const raw = localStorage.getItem('sh_expense_cats_v1');
+    if (raw) {
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr) && arr.length) return arr;
+    }
+  } catch (e) {}
+  return DEFAULT_CATEGORIES.slice();
+}
+function setCachedCategories(arr) {
+  _expenseCategories = arr;
+  try { localStorage.setItem('sh_expense_cats_v1', JSON.stringify(arr)); } catch (e) {}
+}
+async function fetchCategories() {
+  try {
+    const data = await apiGet('admin_categories');
+    if (data && Array.isArray(data.categories) && data.categories.length) {
+      setCachedCategories(data.categories);
+      return data.categories;
+    }
+  } catch (e) {}
+  return getCachedCategories();
+}
+function renderCategoryOptions(selected) {
+  const cats = getCachedCategories();
+  const sel = $('#ex-category');
+  sel.innerHTML = cats.map(c => `<option ${c===selected ? 'selected' : ''}>${escapeHtml(c)}</option>`).join('');
+}
+
+/* ---- expense items dynamic rows ---- */
+function renderExpenseItemsHeader() {
+  const wrap = $('#ex-items');
+  if (wrap.previousElementSibling && wrap.previousElementSibling.classList.contains('ex-item-head')) return;
+  const head = document.createElement('div');
+  head.className = 'ex-item-head';
+  head.innerHTML = `
+    <span>Description</span>
+    <span>Qty</span>
+    <span>Unit</span>
+    <span>Unit price</span>
+    <span>Line total</span>
+    <span></span>`;
+  wrap.parentNode.insertBefore(head, wrap);
+}
+function addItemRow(prefill) {
+  const wrap = $('#ex-items');
+  const row = document.createElement('div');
+  row.className = 'ex-item';
+  const p = prefill || {};
+  row.innerHTML = `
+    <input type="text" class="ex-desc" placeholder="e.g. Beef" value="${escapeHtml(p.description || '')}" />
+    <input type="number" class="ex-qty" step="0.01" min="0" placeholder="0" value="${p.quantity != null ? p.quantity : ''}" inputmode="decimal" />
+    <select class="ex-unit">${UNIT_OPTIONS.map(u => `<option ${u===(p.unit||'kg') ? 'selected' : ''}>${u}</option>`).join('')}</select>
+    <input type="number" class="ex-unit-price" step="0.01" min="0" placeholder="0.00" value="${p.unit_price != null ? p.unit_price : ''}" inputmode="decimal" />
+    <input type="number" class="ex-line-total" step="0.01" min="0" placeholder="0.00" value="${p.line_total != null ? p.line_total : ''}" inputmode="decimal" />
+    <button type="button" class="ex-remove" title="Remove">×</button>`;
+  wrap.appendChild(row);
+  // Auto-calc line total when qty x unit_price changes
+  const qty = row.querySelector('.ex-qty');
+  const up  = row.querySelector('.ex-unit-price');
+  const lt  = row.querySelector('.ex-line-total');
+  let userEditedLT = !!(p.line_total && (!p.quantity || !p.unit_price));
+  function recalc() {
+    const q = parseFloat(qty.value) || 0;
+    const u = parseFloat(up.value) || 0;
+    if (!userEditedLT && q && u) {
+      lt.value = (q * u).toFixed(2);
+    }
+    sumItemsTotal();
+  }
+  qty.addEventListener('input', recalc);
+  up.addEventListener('input', recalc);
+  lt.addEventListener('input', () => { userEditedLT = true; sumItemsTotal(); });
+  row.querySelector('.ex-desc').addEventListener('input', sumItemsTotal);
+  row.querySelector('.ex-remove').addEventListener('click', () => {
+    row.remove();
+    sumItemsTotal();
+  });
+  sumItemsTotal();
+}
+function sumItemsTotal() {
+  let total = 0;
+  $$('#ex-items .ex-item').forEach(row => {
+    const lt = parseFloat(row.querySelector('.ex-line-total').value) || 0;
+    total += lt;
+  });
+  $('#ex-items-total').textContent = total.toFixed(2);
+  // Mirror into the main amount field (user can still override)
+  const amt = $('#ex-amount');
+  if (!amt.dataset.userOverride) {
+    amt.value = total > 0 ? total.toFixed(2) : '';
+  }
+}
+function collectItems() {
+  const items = [];
+  $$('#ex-items .ex-item').forEach(row => {
+    const description = row.querySelector('.ex-desc').value.trim();
+    const quantity    = parseFloat(row.querySelector('.ex-qty').value) || 0;
+    const unit        = row.querySelector('.ex-unit').value;
+    const unit_price  = parseFloat(row.querySelector('.ex-unit-price').value) || 0;
+    const line_total  = parseFloat(row.querySelector('.ex-line-total').value) || 0;
+    if (description || quantity || line_total) {
+      items.push({ description, quantity, unit, unit_price, line_total });
+    }
+  });
+  return items;
+}
+
 function bindExpenseForm() {
+  // Render header once and the saved categories
+  renderExpenseItemsHeader();
+  // Async load latest cats from server (silently)
+  fetchCategories().then(() => renderCategoryOptions($('#ex-category').value));
+
   $('#newExpenseBtn').addEventListener('click', () => {
     $('#ex-date').value = todayISO();
     $('#ex-amount').value = '';
+    delete $('#ex-amount').dataset.userOverride;
     $('#ex-vendor').value = '';
     $('#ex-notes').value = '';
     $('#ex-receipt').value = '';
     $('#ex-receipt-preview').hidden = true;
     $('#ex-receipt-preview').innerHTML = '';
     $('#expenseErr').hidden = true;
+    // Reset items: one empty row
+    $('#ex-items').innerHTML = '';
+    addItemRow();
+    renderCategoryOptions();
     openModal('#expenseModal');
+  });
+
+  // User override detection for the total field
+  $('#ex-amount').addEventListener('input', () => {
+    $('#ex-amount').dataset.userOverride = '1';
+  });
+
+  $('#ex-add-item').addEventListener('click', () => addItemRow());
+
+  $('#ex-manage-cats').addEventListener('click', async () => {
+    const current = getCachedCategories().join(', ');
+    const next = window.prompt('Categories (comma-separated):', current);
+    if (next === null) return;
+    const arr = next.split(',').map(s => s.trim()).filter(Boolean);
+    if (!arr.length) { toast('Need at least one category'); return; }
+    try {
+      await apiPost({ action: 'admin_update_categories', categories: arr });
+      setCachedCategories(arr);
+      renderCategoryOptions($('#ex-category').value);
+      toast('Categories saved');
+    } catch (e) {
+      toast('Could not save: ' + (e.message || e));
+    }
   });
 
   $('#ex-receipt').addEventListener('change', (e) => {
@@ -1234,6 +1381,7 @@ function bindExpenseForm() {
     const amount   = parseFloat($('#ex-amount').value);
     const vendor   = $('#ex-vendor').value.trim();
     const notes    = $('#ex-notes').value.trim();
+    const items    = collectItems();
     if (!date || !category || isNaN(amount) || amount < 0) {
       showErr('#expenseErr', 'Date, category and a valid amount are required.');
       return;
@@ -1244,7 +1392,7 @@ function bindExpenseForm() {
     btn.disabled = true; btn.textContent = 'Saving…';
 
     try {
-      const payload = { action: 'admin_add_expense', date, category, amount, vendor, notes };
+      const payload = { action: 'admin_add_expense', date, category, amount, vendor, notes, items };
       if (file) {
         const b64 = await fileToBase64(file);
         payload.receipt_b64 = b64;
@@ -1252,10 +1400,9 @@ function bindExpenseForm() {
         payload.receipt_mime = file.type || 'image/jpeg';
       }
       await apiPost(payload);
-      toast('Expense saved');
+      toast(items.length ? `Expense saved (${items.length} items)` : 'Expense saved');
       closeModal('#expenseModal');
       refreshExpenses();
-      // refresh today KPIs if visible
       if (!$('[data-tab="today"]').hidden) refreshToday();
     } catch (err) {
       showErr('#expenseErr', err.message);
