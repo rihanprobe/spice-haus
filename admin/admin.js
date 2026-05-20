@@ -640,19 +640,41 @@ function bindOrderModal() {
   const compPickers = $('#om-comp-pickers');
   const compSelect = $('#om-comp-dish');
   const compManage = $('#om-comp-manage');
+
+  // Debounced save so the comp_dish value persists to the sheet
+  let _compSaveTimer = null;
+  function saveCompDishDebounced() {
+    if (!state.currentOrder) return;
+    const orderNumber = state.currentOrder.order_number;
+    const val = state.currentOrder.comp_dish || '';
+    clearTimeout(_compSaveTimer);
+    _compSaveTimer = setTimeout(async () => {
+      try {
+        await apiPost({ action: 'admin_update_status', order_number: orderNumber, comp_dish: val });
+        // Sync local cache so list views also show it
+        const cached = (state.orders || []).find(x => x.order_number === orderNumber);
+        if (cached) cached.comp_dish = val;
+      } catch (e) {
+        toast('Could not save complimentary dish: ' + (e.message || e));
+      }
+    }, 400);
+  }
+
   if (compEnable) {
     compEnable.addEventListener('change', () => {
       const on = compEnable.checked;
       compPickers.hidden = !on;
       if (state.currentOrder) {
-        state.currentOrder.comp_dish = on ? (compSelect.value || getTrialDishes()[0] || '') : null;
+        state.currentOrder.comp_dish = on ? (compSelect.value || getTrialDishes()[0] || '') : '';
+        saveCompDishDebounced();
       }
     });
   }
   if (compSelect) {
     compSelect.addEventListener('change', () => {
       if (state.currentOrder && compEnable.checked) {
-        state.currentOrder.comp_dish = compSelect.value || null;
+        state.currentOrder.comp_dish = compSelect.value || '';
+        saveCompDishDebounced();
       }
     });
   }
@@ -677,9 +699,10 @@ function bindOrderModal() {
       } else {
         compSelect.value = arr[0];
       }
-      // Sync state.currentOrder.comp_dish if checkbox is on
+      // Sync state.currentOrder.comp_dish if checkbox is on, persist to sheet
       if (state.currentOrder && compEnable && compEnable.checked) {
-        state.currentOrder.comp_dish = compSelect.value || null;
+        state.currentOrder.comp_dish = compSelect.value || '';
+        saveCompDishDebounced();
       }
       toast('Saved — "' + compSelect.value + '" selected');
     });
