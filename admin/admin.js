@@ -1207,7 +1207,7 @@ async function refreshInventory() {
     const [inv, rec, mov] = await Promise.all([
       apiGet('admin_inventory'),
       apiGet('admin_recipes'),
-      apiGet('admin_stock_movements&limit=30')
+      apiGet('admin_stock_movements')
     ]);
     state.inventory  = inv.ingredients || [];
     state.recipes    = rec.recipes || {};

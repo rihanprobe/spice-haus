@@ -49,6 +49,15 @@
     <button id="logoutBtn" class="btn ghost small">Sign out</button>
   </header>
 
+  <nav class="tabbar tabbar-top" id="tabbarTop">
+    <button class="tab-btn active" data-go="today"><span>Today</span></button>
+    <button class="tab-btn"        data-go="orders"><span>Orders</span></button>
+    <button class="tab-btn"        data-go="customers"><span>Customers</span></button>
+    <button class="tab-btn"        data-go="reports"><span>Reports</span></button>
+    <button class="tab-btn"        data-go="expenses"><span>Expenses</span></button>
+    <button class="tab-btn"        data-go="inventory"><span>Stock</span></button>
+  </nav>
+
   <main id="content">
     <!-- TODAY -->
     <section data-tab="today" class="tab">
@@ -221,14 +230,6 @@
     </section>
   </main>
 
-  <nav class="tabbar">
-    <button class="tab-btn active" data-go="today"><span>Today</span></button>
-    <button class="tab-btn"        data-go="orders"><span>Orders</span></button>
-    <button class="tab-btn"        data-go="customers"><span>Customers</span></button>
-    <button class="tab-btn"        data-go="reports"><span>Reports</span></button>
-    <button class="tab-btn"        data-go="expenses"><span>Expenses</span></button>
-    <button class="tab-btn"        data-go="inventory"><span>Stock</span></button>
-  </nav>
 </div>
 
 <!-- Expense modal -->
@@ -383,7 +384,7 @@
 <div id="toast" class="toast" hidden></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="./invoice-logo.js?v=20260520b"></script>
-<script src="./admin.js?v=20260520b"></script>
+<script src="./invoice-logo.js?v=20260520c"></script>
+<script src="./admin.js?v=20260520c"></script>
 </body>
 </html>
