@@ -438,12 +438,89 @@ function prettyTime(hhmm) {
    Phone lookup (auto-fill returning customer details)
    ------------------------------------------------------------ */
 
-/* Phone lookup REMOVED for privacy/security.
+/* Phone lookup REMOVED for privacy/security (server-side).
  * Earlier versions called the webhook with ?action=lookup&phone=XXXX which
- * meant anyone could harvest customer details. We now treat phone as input-only. */
+ * meant anyone could harvest customer details. We now treat phone as input-only.
+ *
+ * Client-side returning-customer recognition (privacy-safe):
+ * We store a list of hashed phone numbers in localStorage on this device.
+ * If the typed phone matches one we've seen, we show "Welcome back".
+ * No PII is sent anywhere; cross-device customers fall back to the existing
+ * server-side is_returning detection at submit time. */
+
+const RETURNING_KEY = 'sh_returning_phones';
+
+function normalisePhone(raw) {
+  return (raw || '').replace(/\D+/g, '');
+}
+
+async function hashPhone(digits) {
+  if (!digits) return '';
+  try {
+    const buf = new TextEncoder().encode('sh:' + digits);
+    const h = await crypto.subtle.digest('SHA-256', buf);
+    return Array.from(new Uint8Array(h)).map(b => b.toString(16).padStart(2,'0')).join('').slice(0, 32);
+  } catch (_) {
+    // Fallback: simple non-crypto hash (still not the raw number)
+    let h = 0;
+    for (let i = 0; i < digits.length; i++) h = ((h<<5) - h + digits.charCodeAt(i)) | 0;
+    return 'f' + Math.abs(h).toString(16);
+  }
+}
+
+function getReturningSet() {
+  try {
+    const raw = localStorage.getItem(RETURNING_KEY);
+    return new Set(raw ? JSON.parse(raw) : []);
+  } catch (_) { return new Set(); }
+}
+
+function addReturningPhone(hash) {
+  if (!hash) return;
+  try {
+    const set = getReturningSet();
+    set.add(hash);
+    localStorage.setItem(RETURNING_KEY, JSON.stringify(Array.from(set)));
+  } catch (_) { /* ignore quota / disabled storage */ }
+}
+
+async function isPhoneReturning(rawPhone) {
+  const digits = normalisePhone(rawPhone);
+  if (digits.length < 7) return false;
+  const h = await hashPhone(digits);
+  return getReturningSet().has(h);
+}
+
+let _isReturningCustomer = false;
+
 function initPhoneLookup() {
   const spinner = $('#phoneSpinner');
   if (spinner) spinner.hidden = true;
+
+  const input = $('#o-phone');
+  const hint  = $('#prefillHint');
+  const hintText = $('#prefillHintText');
+  if (!input || !hint) return;
+
+  let timer = null;
+
+  const check = async () => {
+    const ok = await isPhoneReturning(input.value);
+    _isReturningCustomer = ok;
+    hint.hidden = !ok;
+    if (ok && hintText) {
+      hintText.textContent = 'Welcome back to Spice Haus — thanks for ordering with us again.';
+    }
+  };
+
+  input.addEventListener('input', () => {
+    clearTimeout(timer);
+    // Hide immediately while the user is still typing, re-check after 300ms idle
+    hint.hidden = true;
+    _isReturningCustomer = false;
+    timer = setTimeout(check, 300);
+  });
+  input.addEventListener('blur', check);
 }
 
 function collectOrder() {
@@ -562,6 +639,11 @@ function initSubmit() {
     btn.classList.add('btn-loading');
     btn.disabled = true;
 
+    // Client-side recognition (pre-set before submit so WA message is correct)
+    if (_isReturningCustomer) {
+      order.is_returning = true;
+    }
+
     let orderNumber = '';
     try {
       const result = await sendToSheet(order);
@@ -574,6 +656,12 @@ function initSubmit() {
         order.previous_orders_count = result.previous_orders_count || 0;
       }
     } catch (_) { /* non-blocking */ }
+
+    // Remember this phone locally so the next order on this device shows "Welcome back"
+    try {
+      const h = await hashPhone(normalisePhone(order.phone));
+      addReturningPhone(h);
+    } catch (_) { /* ignore */ }
 
     const text = encodeURIComponent(buildWaMessage(order));
     const waUrl = `https://wa.me/${CONFIG.WA_NUMBER}?text=${text}`;
