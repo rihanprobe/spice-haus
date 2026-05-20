@@ -534,3 +534,56 @@ main#content { padding: 18px 16px; max-width: 700px; margin: 0 auto; }
   .ex-item-head > *:nth-child(n+3) { display: none; }
   .ex-item .ex-remove { grid-column: 2; justify-self: end; }
 }
+
+/* ---- Expense item → inventory link ---- */
+.ex-item-link {
+  grid-column: 1 / -1;
+  margin-top: 4px;
+  padding: 6px 8px;
+  background: rgba(45,95,93,0.04);
+  border-radius: 7px;
+  border: 1px dashed var(--line);
+}
+.ex-item-link label { display: block; margin-bottom: 4px; }
+.ex-item-link-row {
+  display: grid;
+  grid-template-columns: 1fr 110px;
+  gap: 6px;
+}
+.ex-item-link .ex-ing,
+.ex-item-link .ex-pack {
+  padding: 7px 8px;
+  border: 1.5px solid var(--line);
+  border-radius: 7px;
+  background: var(--cream);
+  font: inherit;
+  font-size: 0.9rem;
+}
+@media (max-width: 600px) {
+  .ex-item-link-row { grid-template-columns: 1fr; }
+}
+
+/* ---- Low-stock banner on Today ---- */
+.low-stock-banner {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin: 12px 0 16px;
+  padding: 10px 12px;
+  background: #fff4e0;
+  border: 1px solid #f1c878;
+  border-radius: 10px;
+  color: #6c4a08;
+  font-size: 0.92rem;
+}
+.low-stock-banner .ls-icon { font-size: 1.1rem; }
+.low-stock-banner .btn { margin-left: auto; }
+
+/* ---- Inventory rows ---- */
+.inv-row.is-low { border-left: 4px solid #d94a3d; background: rgba(217,74,61,0.04); }
+.inv-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.recipe-lines { margin: 6px 0 0 18px; padding: 0; color: var(--muted); font-size: 0.9rem; }
+.recipe-lines li { margin: 2px 0; }
+.recipe-lines li strong { color: var(--ink); }
+
+/* ---- Stock movements ---- */
+.mv-row .mv-add { color: #2a7a2a; }
+.mv-row .mv-sub { color: #c44; }

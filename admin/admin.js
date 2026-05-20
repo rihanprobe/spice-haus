@@ -238,6 +238,7 @@ function showTab(name) {
   if (name === 'customers') refreshCustomers();
   if (name === 'reports')   refreshReports();
   if (name === 'expenses')  refreshExpenses();
+  if (name === 'inventory') refreshInventory();
 }
 
 /* ---------- TODAY ---------- */
@@ -261,6 +262,28 @@ async function refreshToday() {
   } catch (e) {
     if (!state.today) toast('Could not load today: ' + e.message);
   }
+  // Refresh low-stock chip on the dashboard
+  refreshLowStockChip();
+}
+
+async function refreshLowStockChip() {
+  try {
+    const data = await apiGet('admin_inventory');
+    state.inventory = data.ingredients || [];
+    const low = state.inventory.filter(i => i.low);
+    const banner = document.getElementById('lowStockBanner');
+    const msg    = document.getElementById('lowStockMsg');
+    if (!banner || !msg) return;
+    if (low.length) {
+      const names = low.map(i => i.name).slice(0, 3).join(', ');
+      msg.textContent = low.length === 1
+        ? `${names} is low on stock.`
+        : `${low.length} ingredients low: ${names}${low.length > 3 ? '…' : ''}`;
+      banner.hidden = false;
+    } else {
+      banner.hidden = true;
+    }
+  } catch (e) { /* silent */ }
 }
 
 /* ---------- ORDERS ---------- */
@@ -408,6 +431,12 @@ async function quickAction(orderNumber, action, btn) {
     toast('Updated — ' + orderNumber);
     renderOrders();
     refreshToday();
+    if (payload.delivery_status === 'Delivered' || payload.delivery_status === 'Cancelled') {
+      apiInvalidate('admin_inventory');
+      apiInvalidate('admin_stock_movements');
+      if (!$('[data-tab="inventory"]').hidden) refreshInventory();
+      refreshLowStockChip();
+    }
   } catch (e) {
     toast('Update failed: ' + e.message);
     if (btn) { btn.disabled = false; btn.textContent = oldLabel; }
@@ -608,6 +637,11 @@ function bindOrderModal() {
       renderOrders();
       // Refresh Today KPIs since pending count may change
       refreshToday();
+      // Stock may have moved if status crossed Delivered — invalidate and refresh
+      apiInvalidate('admin_inventory');
+      apiInvalidate('admin_stock_movements');
+      if (!$('[data-tab="inventory"]').hidden) refreshInventory();
+      refreshLowStockChip();
     } catch (e) {
       toast('Update failed: ' + e.message);
     } finally {
@@ -1161,6 +1195,180 @@ td .sub { color: #888; font-size: 10px; margin-top: 3px; }
   w.document.close();
 }
 
+/* ---------- INVENTORY ---------- */
+async function refreshInventory() {
+  const list = $('#inventoryList');
+  if (state.inventory && state.inventory.length) {
+    renderInventory();
+  } else if (list) {
+    list.innerHTML = '<div class="empty">Loading…</div>';
+  }
+  try {
+    const [inv, rec, mov] = await Promise.all([
+      apiGet('admin_inventory'),
+      apiGet('admin_recipes'),
+      apiGet('admin_stock_movements&limit=30')
+    ]);
+    state.inventory  = inv.ingredients || [];
+    state.recipes    = rec.recipes || {};
+    state.movements  = mov.movements || [];
+    renderInventory();
+    renderRecipes();
+    renderMovements();
+  } catch (e) {
+    if (list && !state.inventory) list.innerHTML = '<div class="empty">Could not load: ' + escapeHtml(e.message) + '</div>';
+    else toast('Could not refresh inventory: ' + e.message);
+  }
+}
+function fmtStock(v, unit) {
+  const u = String(unit || '').toLowerCase();
+  if (u === 'portion') return Math.floor(v) + ' portion' + (Math.floor(v) === 1 ? '' : 's');
+  if (u === 'g'  && v >= 1000) return (v / 1000).toFixed(2) + ' kg';
+  if (u === 'ml' && v >= 1000) return (v / 1000).toFixed(2) + ' L';
+  return v + ' ' + unit;
+}
+function renderInventory() {
+  const list = $('#inventoryList');
+  if (!list) return;
+  if (!state.inventory || !state.inventory.length) {
+    list.innerHTML = '<div class="empty">No ingredients yet. Save the Apps Script and open this tab to seed.</div>';
+    return;
+  }
+  list.innerHTML = state.inventory.map(i => {
+    const lowCls = i.low ? ' is-low' : '';
+    const lowPill = i.low ? '<span class="pill pill-urgent">⚠️ Low stock</span>' : '';
+    return `
+      <div class="row inv-row${lowCls}" data-id="${escapeHtml(i.id)}">
+        <div class="row-top">
+          <div>
+            <div class="row-name">${escapeHtml(i.name)} ${lowPill}</div>
+            <div class="row-meta">${escapeHtml(i.id)} · unit: ${escapeHtml(i.unit)} · reorder at ${i.reorder_at} · updated ${escapeHtml(i.updated_at || '—')}</div>
+          </div>
+          <span class="row-amount">${escapeHtml(fmtStock(i.stock, i.unit))}</span>
+        </div>
+        <div class="inv-actions">
+          <button type="button" class="btn primary small" data-inv="restock">+ Restock</button>
+          <button type="button" class="btn ghost small"   data-inv="adjust">− Adjust</button>
+          <button type="button" class="btn ghost small"   data-inv="edit">Edit threshold</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+function renderRecipes() {
+  const list = $('#recipesList');
+  if (!list) return;
+  const recipes = state.recipes || {};
+  const dishes = Object.keys(recipes);
+  if (!dishes.length) {
+    list.innerHTML = '<div class="empty">No recipes yet.</div>';
+    return;
+  }
+  // Map ingredient_id → name for prettier display
+  const idMap = {};
+  (state.inventory || []).forEach(i => { idMap[i.id] = i.name; });
+  list.innerHTML = dishes.map(d => `
+    <div class="row">
+      <div class="row-name">${escapeHtml(d)}</div>
+      <ul class="recipe-lines">
+        ${(recipes[d] || []).map(l => `<li>${escapeHtml(idMap[l.ingredient_id] || l.ingredient_id)} — <strong>${l.qty} ${escapeHtml(l.unit)}</strong></li>`).join('')}
+      </ul>
+    </div>`).join('');
+}
+function renderMovements() {
+  const list = $('#movementsList');
+  if (!list) return;
+  if (!state.movements || !state.movements.length) {
+    list.innerHTML = '<div class="empty">No stock movements yet.</div>';
+    return;
+  }
+  list.innerHTML = state.movements.map(m => {
+    const sign = m.delta > 0 ? '+' : '';
+    const cls  = m.delta > 0 ? 'mv-add' : 'mv-sub';
+    return `
+      <div class="row mv-row">
+        <div class="row-top">
+          <div>
+            <div class="row-name">${escapeHtml(m.name)} <span class="muted small">· ${escapeHtml(m.reason)}</span></div>
+            <div class="row-meta">${escapeHtml(m.timestamp)}${m.ref_id ? ' · ref: ' + escapeHtml(m.ref_id) : ''}</div>
+          </div>
+          <span class="row-amount ${cls}">${sign}${m.delta} ${escapeHtml(m.unit)}</span>
+        </div>
+      </div>`;
+  }).join('');
+}
+function bindInventoryTab() {
+  const list = $('#inventoryList');
+  if (!list) return;
+  list.addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-inv]');
+    if (!btn) return;
+    const row = btn.closest('.inv-row');
+    if (!row) return;
+    const id  = row.getAttribute('data-id');
+    const ing = (state.inventory || []).find(x => x.id === id);
+    if (!ing) return;
+    const action = btn.getAttribute('data-inv');
+
+    if (action === 'restock' || action === 'adjust') {
+      const promptLabel = action === 'restock'
+        ? `How much ${ing.name} to ADD (in ${ing.unit})?`
+        : `How much ${ing.name} to REMOVE (in ${ing.unit})? Enter a positive number.`;
+      const raw = window.prompt(promptLabel, '');
+      if (raw === null) return;
+      const amt = parseFloat(raw);
+      if (!amt || amt <= 0) { toast('Enter a positive number'); return; }
+      const note = window.prompt('Optional note (vendor, invoice, reason):', '') || '';
+      const delta = action === 'restock' ? amt : -amt;
+      btn.disabled = true; const old = btn.textContent; btn.textContent = 'Saving…';
+      try {
+        await apiPost({
+          action: 'admin_restock',
+          ingredient_id: id,
+          delta: delta,
+          reason: action === 'restock' ? 'manual_restock' : 'manual_adjust',
+          note: note
+        });
+        toast(`${ing.name}: ${delta > 0 ? '+' : ''}${delta} ${ing.unit}`);
+        apiInvalidate('admin_inventory');
+        apiInvalidate('admin_stock_movements');
+        refreshInventory();
+        refreshLowStockChip();
+      } catch (err) {
+        toast('Failed: ' + err.message);
+      } finally {
+        btn.disabled = false; btn.textContent = old;
+      }
+      return;
+    }
+
+    if (action === 'edit') {
+      const raw = window.prompt(`Reorder threshold for ${ing.name} (in ${ing.unit}). Warn when stock drops to or below this number.`, String(ing.reorder_at || 0));
+      if (raw === null) return;
+      const v = parseFloat(raw);
+      if (isNaN(v) || v < 0) { toast('Enter zero or a positive number'); return; }
+      btn.disabled = true; const old = btn.textContent; btn.textContent = 'Saving…';
+      try {
+        await apiPost({ action: 'admin_update_ingredient', ingredient_id: id, reorder_at: v });
+        toast('Threshold saved');
+        apiInvalidate('admin_inventory');
+        refreshInventory();
+        refreshLowStockChip();
+      } catch (err) {
+        toast('Failed: ' + err.message);
+      } finally {
+        btn.disabled = false; btn.textContent = old;
+      }
+    }
+  });
+  const refresh = $('#inventoryRefresh');
+  if (refresh) refresh.addEventListener('click', () => {
+    apiInvalidate('admin_inventory');
+    apiInvalidate('admin_recipes');
+    apiInvalidate('admin_stock_movements');
+    refreshInventory();
+  });
+}
+
 /* ---------- EXPENSES ---------- */
 async function refreshExpenses() {
   const hasCached = state.expenses && state.expenses.length;
@@ -1252,6 +1460,13 @@ function renderExpenseItemsHeader() {
     <span></span>`;
   wrap.parentNode.insertBefore(head, wrap);
 }
+/* Build the ingredient picker <select>. Stock list loaded asynchronously on modal open. */
+function buildIngredientOptions(selected) {
+  const list = (state.inventory || []);
+  const opts = ['<option value="">— not linked —</option>']
+    .concat(list.map(i => `<option value="${escapeHtml(i.id)}" data-unit="${escapeHtml(i.unit)}" ${i.id===selected ? 'selected' : ''}>${escapeHtml(i.name)} (${escapeHtml(i.unit)})</option>`));
+  return opts.join('');
+}
 function addItemRow(prefill) {
   const wrap = $('#ex-items');
   const row = document.createElement('div');
@@ -1263,8 +1478,26 @@ function addItemRow(prefill) {
     <select class="ex-unit">${UNIT_OPTIONS.map(u => `<option ${u===(p.unit||'kg') ? 'selected' : ''}>${u}</option>`).join('')}</select>
     <input type="number" class="ex-unit-price" step="0.01" min="0" placeholder="0.00" value="${p.unit_price != null ? p.unit_price : ''}" inputmode="decimal" />
     <input type="number" class="ex-line-total" step="0.01" min="0" placeholder="0.00" value="${p.line_total != null ? p.line_total : ''}" inputmode="decimal" />
-    <button type="button" class="ex-remove" title="Remove">×</button>`;
+    <button type="button" class="ex-remove" title="Remove">×</button>
+    <div class="ex-item-link">
+      <label class="muted small">Link to inventory <span class="muted small">optional — auto-adds to stock</span></label>
+      <div class="ex-item-link-row">
+        <select class="ex-ing">${buildIngredientOptions(p.ingredient_id || '')}</select>
+        <input type="number" class="ex-pack" step="1" min="0" placeholder="pack size" value="${p.pack_size != null ? p.pack_size : ''}" inputmode="numeric" title="For packets/cans/bags — size in the ingredient's base unit (e.g. 100 for a 100g packet, 9000 for a 9L can)" />
+      </div>
+    </div>`;
   wrap.appendChild(row);
+  // Show/hide pack-size input depending on unit
+  const unitSel = row.querySelector('.ex-unit');
+  const packIn  = row.querySelector('.ex-pack');
+  function togglePack() {
+    const u = unitSel.value.toLowerCase();
+    const needs = ['packet','can','bag','box','bottle','pcs'].indexOf(u) >= 0;
+    packIn.style.display = needs ? '' : 'none';
+    if (!needs) packIn.value = '';
+  }
+  unitSel.addEventListener('change', togglePack);
+  togglePack();
   // Auto-calc line total when qty x unit_price changes
   const qty = row.querySelector('.ex-qty');
   const up  = row.querySelector('.ex-unit-price');
@@ -1309,8 +1542,12 @@ function collectItems() {
     const unit        = row.querySelector('.ex-unit').value;
     const unit_price  = parseFloat(row.querySelector('.ex-unit-price').value) || 0;
     const line_total  = parseFloat(row.querySelector('.ex-line-total').value) || 0;
+    const ingSel     = row.querySelector('.ex-ing');
+    const packIn     = row.querySelector('.ex-pack');
+    const ingredient_id = ingSel ? ingSel.value : '';
+    const pack_size     = packIn ? (parseFloat(packIn.value) || 0) : 0;
     if (description || quantity || line_total) {
-      items.push({ description, quantity, unit, unit_price, line_total });
+      items.push({ description, quantity, unit, unit_price, line_total, ingredient_id, pack_size });
     }
   });
   return items;
@@ -1322,7 +1559,7 @@ function bindExpenseForm() {
   // Async load latest cats from server (silently)
   fetchCategories().then(() => renderCategoryOptions($('#ex-category').value));
 
-  $('#newExpenseBtn').addEventListener('click', () => {
+  $('#newExpenseBtn').addEventListener('click', async () => {
     $('#ex-date').value = todayISO();
     $('#ex-amount').value = '';
     delete $('#ex-amount').dataset.userOverride;
@@ -1332,6 +1569,13 @@ function bindExpenseForm() {
     $('#ex-receipt-preview').hidden = true;
     $('#ex-receipt-preview').innerHTML = '';
     $('#expenseErr').hidden = true;
+    // Ensure inventory list is loaded so ingredient picker is populated
+    if (!state.inventory || !state.inventory.length) {
+      try {
+        const inv = await apiGet('admin_inventory');
+        state.inventory = inv.ingredients || [];
+      } catch (e) { /* picker just shows 'not linked' */ }
+    }
     // Reset items: one empty row
     $('#ex-items').innerHTML = '';
     addItemRow();
@@ -1399,11 +1643,17 @@ function bindExpenseForm() {
         payload.receipt_name = file.name;
         payload.receipt_mime = file.type || 'image/jpeg';
       }
-      await apiPost(payload);
-      toast(items.length ? `Expense saved (${items.length} items)` : 'Expense saved');
+      const res = await apiPost(payload);
+      const adds = (res && res.stock_adds) || 0;
+      toast(adds
+        ? `Expense saved — ${adds} item(s) added to stock`
+        : (items.length ? `Expense saved (${items.length} items)` : 'Expense saved'));
       closeModal('#expenseModal');
+      apiInvalidate('admin_inventory');
       refreshExpenses();
       if (!$('[data-tab="today"]').hidden) refreshToday();
+      if (!$('[data-tab="inventory"]').hidden) refreshInventory();
+      refreshLowStockChip();
     } catch (err) {
       showErr('#expenseErr', err.message);
     } finally {
@@ -2043,6 +2293,7 @@ function init() {
   bindCustomersTab();
   bindReportsTab();
   bindFeedbackInModal();
+  bindInventoryTab();
 
   // Auto-enter if we already have a key
   if (state.key) {

@@ -82,12 +82,19 @@
         </div>
       </div>
 
+      <div id="lowStockBanner" class="low-stock-banner" hidden>
+        <span class="ls-icon">⚠️</span>
+        <span id="lowStockMsg">Some ingredients are low.</span>
+        <button type="button" class="btn ghost small" data-go="inventory">View inventory</button>
+      </div>
+
       <div class="quick-add">
         <h3>Quick add</h3>
         <div class="quick-buttons">
           <button class="btn ghost" data-go="expenses">+ Expense</button>
           <a class="btn ghost" href="/#order" target="_blank">+ Order (public form)</a>
           <button class="btn ghost" data-go="orders">View orders</button>
+          <button class="btn ghost" data-go="inventory">View inventory</button>
         </div>
       </div>
     </section>
@@ -195,6 +202,23 @@
       </div>
       <div id="expensesList" class="list"></div>
     </section>
+
+    <!-- INVENTORY -->
+    <section data-tab="inventory" class="tab" hidden>
+      <div class="tab-head">
+        <h2>Inventory</h2>
+        <button type="button" class="btn ghost small" id="inventoryRefresh" title="Refresh">↻</button>
+      </div>
+      <p class="muted small">Stock is deducted when an order is marked <strong>Delivered</strong>. Buying an ingredient via Expenses adds it back automatically when linked.</p>
+      <div id="inventoryList" class="list"></div>
+
+      <h3 style="margin-top:1.5rem">Recipes</h3>
+      <p class="muted small">Per one portion (≈ 1 kg finished pack). Edit in the <em>Recipes</em> sheet tab.</p>
+      <div id="recipesList" class="list"></div>
+
+      <h3 style="margin-top:1.5rem">Recent movements</h3>
+      <div id="movementsList" class="list"></div>
+    </section>
   </main>
 
   <nav class="tabbar">
@@ -203,6 +227,7 @@
     <button class="tab-btn"        data-go="customers"><span>Customers</span></button>
     <button class="tab-btn"        data-go="reports"><span>Reports</span></button>
     <button class="tab-btn"        data-go="expenses"><span>Expenses</span></button>
+    <button class="tab-btn"        data-go="inventory"><span>Stock</span></button>
   </nav>
 </div>
 
@@ -358,7 +383,7 @@
 <div id="toast" class="toast" hidden></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="./invoice-logo.js?v=20260520a"></script>
-<script src="./admin.js?v=20260520a"></script>
+<script src="./invoice-logo.js?v=20260520b"></script>
+<script src="./admin.js?v=20260520b"></script>
 </body>
 </html>
