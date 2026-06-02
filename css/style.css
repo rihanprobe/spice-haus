@@ -410,28 +410,33 @@ a, button, [role="button"], input, textarea, select {
   border-top: 1px solid var(--color-border);
   border-bottom: 1px solid var(--color-border);
 }
-.hero-meta .stat .num {
+.hero-meta .stat .label {
   font-family: var(--font-display);
   font-size: var(--text-xl);
   color: var(--cream-50);
   display: block;
   line-height: 1;
-}
-.hero-meta .stat .num small {
-  font-family: var(--font-body);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--brass-500);
   letter-spacing: 0;
-  margin-left: 4px;
+  text-transform: none;
 }
-.hero-meta .stat .label {
+.hero-meta .stat .num {
+  font-family: var(--font-body);
   font-size: 11px;
+  font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--color-text-faint);
   margin-top: var(--space-2);
   display: block;
+}
+.hero-meta .stat .num small {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-faint);
+  letter-spacing: 0.18em;
+  margin-left: 2px;
+  text-transform: uppercase;
 }
 
 .hero-ctas { display: flex; gap: var(--space-3); flex-wrap: wrap; }
