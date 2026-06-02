@@ -413,7 +413,7 @@ a, button, [role="button"], input, textarea, select {
 .hero-meta .stat .label {
   font-family: var(--font-display);
   font-size: var(--text-xl);
-  color: var(--cream-50);
+  color: var(--brass-500);
   display: block;
   line-height: 1;
   letter-spacing: 0;
