@@ -199,6 +199,12 @@ function initWaLinks() {
     if (a.tagName === 'A') a.href = url;
     a.target = '_blank';
     a.rel = 'noopener';
+    // Track every WhatsApp click in GA4
+    a.addEventListener('click', () => {
+      if (window.gtag) gtag('event', 'whatsapp_clicked', {
+        source: a.getAttribute('data-wa') || a.id || 'link'
+      });
+    });
   });
 }
 
@@ -663,6 +669,14 @@ function initSubmit() {
       addReturningPhone(h);
     } catch (_) { /* ignore */ }
 
+    // Track the order submission in GA4 BEFORE redirecting to WhatsApp
+    if (window.gtag) gtag('event', 'order_submitted', {
+      meat:     order.meat || '',
+      quantity: order.quantity || '',
+      emirate:  order.emirate || '',
+      is_returning: !!order.is_returning
+    });
+
     const text = encodeURIComponent(buildWaMessage(order));
     const waUrl = `https://wa.me/${CONFIG.WA_NUMBER}?text=${text}`;
 
@@ -679,6 +693,60 @@ function initSubmit() {
 }
 
 /* ------------------------------------------------------------
+   Cookie consent banner — grants GA4 only after Accept
+   ------------------------------------------------------------ */
+
+function initConsentBanner() {
+  let stored = null;
+  try { stored = localStorage.getItem('sh_consent_v1'); } catch (e) {}
+  const banner = document.getElementById('shCookieBanner');
+  if (!banner) return;
+
+  if (!stored) {
+    banner.hidden = false;
+  }
+
+  function setConsent(value) {
+    try { localStorage.setItem('sh_consent_v1', value); } catch (e) {}
+    if (window.gtag) {
+      gtag('consent', 'update', {
+        ad_storage:        value === 'granted' ? 'granted' : 'denied',
+        analytics_storage: value === 'granted' ? 'granted' : 'denied',
+        ad_user_data:      value === 'granted' ? 'granted' : 'denied'
+      });
+    }
+    banner.hidden = true;
+  }
+
+  const accept = document.getElementById('shCookieAccept');
+  const decline = document.getElementById('shCookieDecline');
+  const learn   = document.getElementById('shCookieLearn');
+  if (accept)  accept.addEventListener('click', () => setConsent('granted'));
+  if (decline) decline.addEventListener('click', () => setConsent('denied'));
+  if (learn)   learn.addEventListener('click', (e) => {
+    e.preventDefault();
+    alert('We use Google Analytics to count anonymous visits, see which pages people read, and learn which devices they\u2019re on. We do not sell or share your data, and we do not show ads.');
+  });
+}
+
+/* Track a “menu_viewed” when the dish section enters view */
+function initMenuViewTracking() {
+  const target = document.querySelector('#dish, [data-track="dish"]') || document.querySelector('section#the-dish, section.dish-section');
+  if (!target || !('IntersectionObserver' in window)) return;
+  let fired = false;
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(en => {
+      if (en.isIntersecting && !fired) {
+        fired = true;
+        if (window.gtag) gtag('event', 'menu_viewed');
+        io.disconnect();
+      }
+    });
+  }, { threshold: 0.4 });
+  io.observe(target);
+}
+
+/* ------------------------------------------------------------
    Boot
    ------------------------------------------------------------ */
 
@@ -687,6 +755,8 @@ document.addEventListener('DOMContentLoaded', () => {
   initScrollSpy();
   initReveal();
   initFAQ();
+  initConsentBanner();
+  initMenuViewTracking();
   initWaLinks();
   Modal.init();
   initOrderForm();

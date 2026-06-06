@@ -27,8 +27,38 @@
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet" />
 
   <link rel="stylesheet" href="css/style.css" />
+
+  <!-- Google tag (gtag.js) — GA4 with Consent Mode v2 -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-Q44MRGDBTX"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    // Default-deny; will be granted only after user clicks Accept on the cookie banner.
+    var __shConsent = null;
+    try { __shConsent = localStorage.getItem('sh_consent_v1'); } catch (e) {}
+    gtag('consent', 'default', {
+      ad_storage:        __shConsent === 'granted' ? 'granted' : 'denied',
+      analytics_storage: __shConsent === 'granted' ? 'granted' : 'denied',
+      ad_user_data:      __shConsent === 'granted' ? 'granted' : 'denied',
+      ad_personalization: 'denied',
+      wait_for_update: 500
+    });
+    gtag('js', new Date());
+    gtag('config', 'G-Q44MRGDBTX', { anonymize_ip: true });
+  </script>
 </head>
 <body>
+  <!-- Cookie consent banner (one-time dismiss) -->
+  <div id="shCookieBanner" class="sh-cookie-banner" hidden role="region" aria-label="Cookie consent">
+    <p class="sh-cookie-text">
+      We use a privacy-friendly cookie to count visits and help us improve Spice Haus. No ads, no tracking across other sites.
+      <a href="#" id="shCookieLearn">What we collect</a>
+    </p>
+    <div class="sh-cookie-actions">
+      <button type="button" id="shCookieDecline" class="sh-cookie-btn ghost">Decline</button>
+      <button type="button" id="shCookieAccept" class="sh-cookie-btn primary">Accept</button>
+    </div>
+  </div>
 
   <!-- ============================================
        Header
