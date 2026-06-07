@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#2D5F5D" />
+  <title>Spice Haus · Links</title>
+  <meta name="description" content="Spice Haus — Bhuna Gosht from Al Nahda, Sharjah. Order, follow, and find us." />
+
+  <meta property="og:title" content="Spice Haus — Links" />
+  <meta property="og:description" content="Order, follow, and find Spice Haus — slow-cooked Bhuna Gosht from Al Nahda, Sharjah." />
+  <meta property="og:image" content="https://spicehaus.org/assets/link-preview.jpg" />
+  <meta property="og:url" content="https://spicehaus.org/links/" />
+  <meta property="og:type" content="website" />
+
+  <link rel="icon" type="image/png" href="../assets/favicon.png" />
+  <link rel="apple-touch-icon" href="../assets/favicon.png" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- GA4 with Consent Mode v2 -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-Q44MRGDBTX"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    var __shConsent = null;
+    try { __shConsent = localStorage.getItem('sh_consent_v1'); } catch (e) {}
+    gtag('consent', 'default', {
+      ad_storage:        __shConsent === 'granted' ? 'granted' : 'denied',
+      analytics_storage: __shConsent === 'granted' ? 'granted' : 'denied',
+      ad_user_data:      __shConsent === 'granted' ? 'granted' : 'denied',
+      ad_personalization: 'denied',
+      wait_for_update: 500
+    });
+    gtag('js', new Date());
+    gtag('config', 'G-Q44MRGDBTX', { anonymize_ip: true, page_path: '/links' });
+  </script>
+
+  <style>
+    :root {
+      --teal: #2D5F5D;
+      --teal-dark: #1f4644;
+      --cream: #FAF6EE;
+      --cream-soft: #f3ecd9;
+      --brass: #C99A4B;
+      --brass-dark: #a87d34;
+      --ink: #1b1b1b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { min-height: 100vh; }
+    body {
+      font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+      background: linear-gradient(160deg, var(--teal-dark) 0%, var(--teal) 60%, #38716e 100%);
+      color: var(--cream);
+      -webkit-font-smoothing: antialiased;
+      padding: 48px 20px 60px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 460px;
+    }
+
+    .brand {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+    .brand-mark {
+      width: 92px;
+      height: 92px;
+      border-radius: 50%;
+      background: var(--cream);
+      margin: 0 auto 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+      overflow: hidden;
+    }
+    .brand-mark img {
+      width: 78%;
+      height: 78%;
+      object-fit: contain;
+    }
+    .brand-name {
+      font-family: 'Fraunces', serif;
+      font-weight: 600;
+      font-size: 30px;
+      letter-spacing: 0.5px;
+      color: var(--brass);
+    }
+    .brand-tag {
+      margin-top: 6px;
+      font-size: 13px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--cream-soft);
+      opacity: 0.8;
+    }
+    .brand-bio {
+      margin-top: 18px;
+      font-family: 'Fraunces', serif;
+      font-style: italic;
+      font-size: 16px;
+      line-height: 1.5;
+      color: var(--cream);
+      opacity: 0.92;
+    }
+    .brand-bio strong {
+      font-style: normal;
+      font-weight: 600;
+      color: var(--brass);
+    }
+
+    .links { margin-top: 28px; display: flex; flex-direction: column; gap: 12px; }
+
+    .link {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      background: var(--cream);
+      color: var(--ink);
+      text-decoration: none;
+      padding: 16px 18px;
+      border-radius: 14px;
+      font-weight: 600;
+      font-size: 16px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      border: 1.5px solid transparent;
+    }
+    .link:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 22px rgba(0,0,0,0.22);
+      border-color: var(--brass);
+    }
+    .link .icon {
+      width: 32px;
+      height: 32px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .link .icon svg { width: 100%; height: 100%; }
+    .link .text { flex: 1; }
+    .link .text .label { display: block; font-size: 15px; }
+    .link .text .sub { display: block; font-size: 12px; font-weight: 500; opacity: 0.6; margin-top: 2px; }
+    .link .arrow {
+      font-size: 18px;
+      color: var(--brass-dark);
+      opacity: 0.6;
+    }
+
+    .link.primary {
+      background: var(--brass);
+      color: var(--cream);
+    }
+    .link.primary .text .sub { color: var(--cream); opacity: 0.85; }
+    .link.primary .arrow { color: var(--cream); opacity: 0.9; }
+
+    .footer {
+      margin-top: 36px;
+      text-align: center;
+      font-size: 12px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--cream);
+      opacity: 0.55;
+    }
+    .footer a { color: var(--brass); text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <div class="brand">
+      <div class="brand-mark">
+        <img src="../assets/favicon.png" alt="Spice Haus" onerror="this.style.display='none'" />
+      </div>
+      <div class="brand-name">Spice Haus</div>
+      <div class="brand-tag">Al Nahda · Sharjah</div>
+      <p class="brand-bio">
+        Slow-cooked <strong>Bhuna Gosht</strong>, made by hand.<br/>
+        Mutton 205 · Beef 185 per kg · 24 hr notice.
+      </p>
+    </div>
+
+    <div class="links">
+
+      <a class="link primary" href="https://wa.me/971524718286?text=Hi%20Spice%20Haus%2C%20I'd%20like%20to%20order" target="_blank" rel="noopener" data-event="link_whatsapp">
+        <div class="icon">
+          <svg viewBox="0 0 32 32" fill="currentColor"><path d="M16.001 3C8.82 3 3 8.82 3 16c0 2.293.6 4.532 1.74 6.501L3 29l6.65-1.74A12.93 12.93 0 0016.001 29C23.18 29 29 23.18 29 16S23.18 3 16.001 3zm0 23.6c-1.99 0-3.94-.534-5.64-1.547l-.404-.24-3.95 1.034 1.054-3.85-.263-.41A10.55 10.55 0 015.4 16C5.4 10.15 10.15 5.4 16.001 5.4S26.6 10.15 26.6 16s-4.75 10.6-10.6 10.6zm5.81-7.94c-.318-.16-1.88-.928-2.171-1.034-.292-.107-.503-.16-.715.16-.21.318-.82 1.034-1.005 1.245-.185.213-.37.24-.688.08-.318-.16-1.34-.494-2.553-1.575-.944-.842-1.581-1.882-1.766-2.2-.185-.318-.02-.49.139-.65.143-.142.318-.37.477-.555.16-.186.213-.318.32-.531.105-.213.053-.398-.027-.557-.08-.16-.715-1.722-.98-2.358-.258-.62-.52-.535-.715-.546l-.61-.011a1.17 1.17 0 00-.85.398c-.293.318-1.117 1.092-1.117 2.66 0 1.566 1.144 3.082 1.303 3.295.16.213 2.252 3.44 5.46 4.823.764.33 1.359.527 1.823.674.766.244 1.464.21 2.015.127.615-.092 1.88-.768 2.146-1.51.265-.74.265-1.376.185-1.51-.08-.132-.292-.213-.61-.372z"/></svg>
+        </div>
+        <div class="text">
+          <span class="label">Order on WhatsApp</span>
+          <span class="sub">+971 52 471 8286 · fastest way</span>
+        </div>
+        <span class="arrow">→</span>
+      </a>
+
+      <a class="link" href="https://spicehaus.org/" target="_blank" rel="noopener" data-event="link_menu">
+        <div class="icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#2D5F5D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        </div>
+        <div class="text">
+          <span class="label">Full Menu & Story</span>
+          <span class="sub">spicehaus.org</span>
+        </div>
+        <span class="arrow">→</span>
+      </a>
+
+      <a class="link" href="https://instagram.com/spicehaus.uae" target="_blank" rel="noopener" data-event="link_instagram">
+        <div class="icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#2D5F5D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
+        </div>
+        <div class="text">
+          <span class="label">Instagram</span>
+          <span class="sub">@spicehaus.uae · daily kitchen</span>
+        </div>
+        <span class="arrow">→</span>
+      </a>
+
+      <a class="link" href="https://facebook.com/spicehaus.uae" target="_blank" rel="noopener" data-event="link_facebook">
+        <div class="icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#2D5F5D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
+        </div>
+        <div class="text">
+          <span class="label">Facebook</span>
+          <span class="sub">Spice Haus Page</span>
+        </div>
+        <span class="arrow">→</span>
+      </a>
+
+      <a class="link" href="tel:+971524718286" data-event="link_call">
+        <div class="icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#2D5F5D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+        </div>
+        <div class="text">
+          <span class="label">Call us</span>
+          <span class="sub">+971 52 471 8286</span>
+        </div>
+        <span class="arrow">→</span>
+      </a>
+
+      <a class="link" href="https://maps.google.com/?q=Al+Nahda+Sharjah" target="_blank" rel="noopener" data-event="link_location">
+        <div class="icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#2D5F5D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        </div>
+        <div class="text">
+          <span class="label">Find us</span>
+          <span class="sub">Al Nahda, Sharjah</span>
+        </div>
+        <span class="arrow">→</span>
+      </a>
+
+    </div>
+
+    <div class="footer">
+      © Spice Haus · <a href="https://spicehaus.org">spicehaus.org</a>
+    </div>
+
+  </div>
+
+  <script>
+    // Light click tracking for GA4
+    document.querySelectorAll('.link').forEach(el => {
+      el.addEventListener('click', () => {
+        if (typeof gtag === 'function') {
+          gtag('event', el.dataset.event || 'link_click', {
+            link_url: el.href,
+            page_path: '/links'
+          });
+        }
+      });
+    });
+  </script>
+</body>
+</html>
