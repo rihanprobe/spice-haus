@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./admin.css?v=20260520a" />
+<link rel="stylesheet" href="./admin.css?v=20260614a" />
 
 <!-- Google tag (gtag.js) — tagged as INTERNAL traffic so it doesn't pollute visitor stats. -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-Q44MRGDBTX"></script>
@@ -74,6 +74,7 @@
     <button class="tab-btn"        data-go="reports"><span>Reports</span></button>
     <button class="tab-btn"        data-go="expenses"><span>Expenses</span></button>
     <button class="tab-btn"        data-go="inventory"><span>Stock</span></button>
+    <button class="tab-btn"        data-go="contacts"><span>Contacts</span></button>
   </nav>
 
   <main id="content">
@@ -228,6 +229,67 @@
         <button id="newExpenseBtn" class="btn primary small">+ Add</button>
       </div>
       <div id="expensesList" class="list"></div>
+    </section>
+
+    <!-- CONTACTS -->
+    <section data-tab="contacts" class="tab" hidden>
+      <div class="tab-head">
+        <h2>Contacts</h2>
+        <div class="tab-actions">
+          <button type="button" class="btn ghost small" id="contactsRefresh" title="Refresh">↻</button>
+          <button type="button" class="btn primary small" id="newContactBtn">+ Add</button>
+        </div>
+      </div>
+      <p class="muted small" id="contactsSummary">Loading…</p>
+
+      <div class="contacts-tabs" id="contactsTabs">
+        <button type="button" class="ct-btn active" data-ct="contacts">Contacts</button>
+        <button type="button" class="ct-btn" data-ct="tags">Tags</button>
+        <button type="button" class="ct-btn" data-ct="broadcasts">Broadcasts</button>
+      </div>
+
+      <!-- Contacts subtab -->
+      <div data-ct-pane="contacts">
+        <div class="contact-filters">
+          <input type="search" id="contactSearch" placeholder="Search name, phone, email…" />
+          <select id="contactTagFilter"><option value="">All tags</option></select>
+          <select id="contactCountryFilter">
+            <option value="">All countries</option>
+            <option value="UAE">UAE</option>
+            <option value="India">India</option>
+            <option value="Saudi">Saudi</option>
+            <option value="Kuwait">Kuwait</option>
+            <option value="Qatar">Qatar</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="contact-chips" id="contactTagChips"></div>
+        <div class="contact-bulk-bar" id="contactBulkBar" hidden>
+          <span><strong id="contactSelCount">0</strong> selected</span>
+          <button type="button" class="btn primary small" id="composeBroadcastBtn">📢 Compose broadcast</button>
+          <button type="button" class="btn ghost small" id="bulkTagBtn">Tag…</button>
+          <button type="button" class="btn ghost small" id="selectAllBtn">Select all</button>
+          <button type="button" class="btn ghost small" id="clearSelBtn">Clear</button>
+        </div>
+        <div id="contactsList" class="list"></div>
+      </div>
+
+      <!-- Tags subtab -->
+      <div data-ct-pane="tags" hidden>
+        <div class="tags-head">
+          <p class="muted small">Create custom tags to segment contacts (e.g. “VIP”, “Al Nahda neighbours”, “Bhuna regulars”).</p>
+          <button type="button" class="btn primary small" id="newTagBtn">+ New tag</button>
+        </div>
+        <div id="tagsList" class="tags-grid"></div>
+      </div>
+
+      <!-- Broadcasts subtab -->
+      <div data-ct-pane="broadcasts" hidden>
+        <div class="tags-head">
+          <p class="muted small">Broadcasts history. Compose a new one from the Contacts subtab by selecting recipients.</p>
+        </div>
+        <div id="broadcastsList" class="list"></div>
+      </div>
     </section>
 
     <!-- INVENTORY -->
@@ -403,6 +465,6 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="./invoice-logo.js?v=20260520c"></script>
-<script src="./admin.js?v=20260520c"></script>
+<script src="./admin.js?v=20260614a"></script>
 </body>
 </html>

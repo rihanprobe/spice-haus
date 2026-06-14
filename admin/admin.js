@@ -239,6 +239,7 @@ function showTab(name) {
   if (name === 'reports')   refreshReports();
   if (name === 'expenses')  refreshExpenses();
   if (name === 'inventory') refreshInventory();
+  if (name === 'contacts')  refreshContacts();
 }
 
 /* ---------- TODAY ---------- */
@@ -2248,7 +2249,7 @@ function init() {
     const t = e.target.closest('[data-go]');
     if (!t) return;
     const name = t.dataset.go;
-    if (['today','orders','customers','reports','expenses'].indexOf(name) >= 0) showTab(name);
+    if (['today','orders','customers','reports','expenses','inventory','contacts'].indexOf(name) >= 0) showTab(name);
   });
 
   // Manual refresh button (forces a fresh fetch)
@@ -2318,3 +2319,487 @@ async function enterApp() {
 }
 
 document.addEventListener('DOMContentLoaded', init);
+
+/* ================================================================
+ *  CONTACTS + BROADCAST MODULE
+ *  Free WhatsApp broadcasting via:
+ *    1. wa.me links — tap each to send (works for any number)
+ *    2. WhatsApp Broadcast List export — paste into WA app
+ * ================================================================ */
+
+const contactsState = {
+  contacts: [],
+  tags: [],
+  broadcasts: [],
+  selected: new Set(),
+  filters: { q: '', tag: '', country: '' },
+  subtab: 'contacts',
+  loaded: false
+};
+
+async function refreshContacts(force) {
+  if (contactsState.loaded && !force) {
+    paintContacts();
+    paintTags();
+    paintBroadcasts();
+    return;
+  }
+  try {
+    $('#contactsSummary').textContent = 'Loading…';
+    const [c, t, b] = await Promise.all([
+      apiGet('admin_contacts', { force: !!force }),
+      apiGet('admin_tags',     { force: !!force }),
+      apiGet('admin_broadcasts',{ force: !!force })
+    ]);
+    contactsState.contacts  = c.contacts || [];
+    contactsState.tags      = t.tags || [];
+    contactsState.broadcasts= b.broadcasts || [];
+    contactsState.loaded = true;
+    populateTagFilter();
+    paintContacts();
+    paintTags();
+    paintBroadcasts();
+  } catch (e) {
+    $('#contactsSummary').textContent = 'Error: ' + e.message;
+  }
+}
+
+function populateTagFilter() {
+  const sel = $('#contactTagFilter');
+  if (!sel) return;
+  const current = sel.value;
+  sel.innerHTML = '<option value="">All tags</option>' +
+    contactsState.tags.map(t =>
+      `<option value="${escAttr(t.tag)}">${escHtml(t.tag)} (${t.contact_count || 0})</option>`
+    ).join('');
+  sel.value = current;
+  // Tag chips
+  const chips = $('#contactTagChips');
+  if (chips) {
+    chips.innerHTML = contactsState.tags.map(t => `
+      <button type="button" class="tag-chip ${contactsState.filters.tag === t.tag ? 'active':''}"
+              data-tag="${escAttr(t.tag)}" style="--chip:${escAttr(t.color || '#666')}">
+        <span class="dot"></span>${escHtml(t.tag)} <em>${t.contact_count || 0}</em>
+      </button>
+    `).join('');
+  }
+}
+
+function filteredContacts() {
+  const q = contactsState.filters.q.toLowerCase().trim();
+  const tag = contactsState.filters.tag;
+  const country = contactsState.filters.country;
+  return contactsState.contacts.filter(c => {
+    if (tag && !(c.tags || '').split(',').map(s=>s.trim()).includes(tag)) return false;
+    if (country && c.country !== country) return false;
+    if (q) {
+      const hay = (c.name + ' ' + c.phone + ' ' + c.email + ' ' + c.tags).toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+function paintContacts() {
+  const list = $('#contactsList');
+  if (!list) return;
+  const all = filteredContacts();
+  const total = contactsState.contacts.length;
+  const shown = all.slice(0, 300);  // virtualise: top 300
+
+  $('#contactsSummary').textContent =
+    `${all.length.toLocaleString()} of ${total.toLocaleString()} contacts` +
+    (shown.length < all.length ? ` · showing first ${shown.length}` : '');
+
+  if (!shown.length) {
+    list.innerHTML = '<p class="muted small">No contacts match.</p>';
+    return;
+  }
+  list.innerHTML = shown.map(c => {
+    const tags = (c.tags || 'Untagged').split(',').map(t => t.trim()).filter(Boolean);
+    const tagHtml = tags.map(t => {
+      const def = contactsState.tags.find(x => x.tag === t);
+      const color = def ? def.color : '#999';
+      return `<span class="ct-tag" style="--chip:${escAttr(color)}">${escHtml(t)}</span>`;
+    }).join(' ');
+    const isSel = contactsState.selected.has(c.id);
+    return `
+      <div class="contact-row ${isSel?'selected':''}" data-id="${escAttr(c.id)}">
+        <label class="ct-check">
+          <input type="checkbox" data-ct-check="${escAttr(c.id)}" ${isSel?'checked':''} />
+        </label>
+        <div class="ct-main">
+          <div class="ct-name">${escHtml(c.name || '(no name)')}</div>
+          <div class="ct-meta">
+            <a href="tel:${escAttr(c.phone)}">${escHtml(c.phone)}</a>
+            ${c.country ? ` · ${escHtml(c.country)}` : ''}
+            ${c.email ? ` · ${escHtml(c.email)}` : ''}
+          </div>
+          <div class="ct-tags">${tagHtml}</div>
+        </div>
+        <div class="ct-actions">
+          <a class="btn ghost xs" href="https://wa.me/${(c.phone||'').replace(/[^0-9]/g,'')}" target="_blank" title="WhatsApp">💬</a>
+          <button type="button" class="btn ghost xs" data-ct-edit="${escAttr(c.id)}">✏️</button>
+          <button type="button" class="btn ghost xs" data-ct-del="${escAttr(c.id)}">🗑</button>
+        </div>
+      </div>`;
+  }).join('');
+  updateBulkBar();
+}
+
+function updateBulkBar() {
+  const bar = $('#contactBulkBar');
+  const count = contactsState.selected.size;
+  $('#contactSelCount').textContent = count;
+  bar.hidden = count === 0;
+}
+
+function paintTags() {
+  const list = $('#tagsList');
+  if (!list) return;
+  if (!contactsState.tags.length) {
+    list.innerHTML = '<p class="muted small">No tags yet.</p>';
+    return;
+  }
+  list.innerHTML = contactsState.tags.map(t => `
+    <div class="tag-card" style="--chip:${escAttr(t.color || '#666')}">
+      <span class="dot"></span>
+      <div class="tg-info">
+        <div class="tg-name">${escHtml(t.tag)}</div>
+        <div class="tg-count">${t.contact_count || 0} contacts</div>
+        ${t.description ? `<div class="tg-desc">${escHtml(t.description)}</div>` : ''}
+      </div>
+      <button type="button" class="btn ghost xs" data-tag-del="${escAttr(t.tag)}">🗑</button>
+    </div>
+  `).join('');
+}
+
+function paintBroadcasts() {
+  const list = $('#broadcastsList');
+  if (!list) return;
+  if (!contactsState.broadcasts.length) {
+    list.innerHTML = '<p class="muted small">No broadcasts yet. Compose one from the Contacts subtab.</p>';
+    return;
+  }
+  list.innerHTML = contactsState.broadcasts.map(b => `
+    <div class="broadcast-row">
+      <div>
+        <div class="ct-name">${escHtml(b.name || 'Broadcast')}</div>
+        <div class="ct-meta">${escHtml(b.target_tags || '—')} · ${b.recipient_count || 0} recipients · ${escHtml(b.method)} · <em>${escHtml(b.status)}</em></div>
+        <div class="ct-meta muted small">${escHtml(b.message || '').slice(0, 140)}${(b.message||'').length>140?'…':''}</div>
+      </div>
+      <div class="ct-meta muted small">${formatDate(b.created_at)}</div>
+    </div>
+  `).join('');
+}
+
+/* ---------- Wire events on first paint ---------- */
+function initContactsEvents() {
+  if (initContactsEvents._done) return;
+  initContactsEvents._done = true;
+
+  $('#contactSearch')?.addEventListener('input', (e) => {
+    contactsState.filters.q = e.target.value;
+    paintContacts();
+  });
+  $('#contactTagFilter')?.addEventListener('change', (e) => {
+    contactsState.filters.tag = e.target.value;
+    populateTagFilter();
+    paintContacts();
+  });
+  $('#contactCountryFilter')?.addEventListener('change', (e) => {
+    contactsState.filters.country = e.target.value;
+    paintContacts();
+  });
+  $('#contactTagChips')?.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-tag]');
+    if (!b) return;
+    const t = b.dataset.tag;
+    contactsState.filters.tag = contactsState.filters.tag === t ? '' : t;
+    $('#contactTagFilter').value = contactsState.filters.tag;
+    populateTagFilter();
+    paintContacts();
+  });
+  $('#contactsRefresh')?.addEventListener('click', () => refreshContacts(true));
+  $('#newContactBtn')?.addEventListener('click', openContactModal);
+  $('#selectAllBtn')?.addEventListener('click', () => {
+    filteredContacts().slice(0, 300).forEach(c => contactsState.selected.add(c.id));
+    paintContacts();
+  });
+  $('#clearSelBtn')?.addEventListener('click', () => {
+    contactsState.selected.clear();
+    paintContacts();
+  });
+  $('#composeBroadcastBtn')?.addEventListener('click', openBroadcastModal);
+  $('#bulkTagBtn')?.addEventListener('click', openBulkTagModal);
+
+  $('#newTagBtn')?.addEventListener('click', openTagModal);
+
+  // Subtabs
+  $('#contactsTabs')?.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-ct]');
+    if (!b) return;
+    contactsState.subtab = b.dataset.ct;
+    $$('#contactsTabs .ct-btn').forEach(x => x.classList.toggle('active', x === b));
+    $$('[data-ct-pane]').forEach(p => p.hidden = p.dataset.ctPane !== contactsState.subtab);
+  });
+
+  // Delegated row actions
+  $('#contactsList')?.addEventListener('click', async (e) => {
+    const cb = e.target.closest('[data-ct-check]');
+    if (cb) {
+      const id = cb.dataset.ctCheck;
+      if (cb.checked) contactsState.selected.add(id); else contactsState.selected.delete(id);
+      e.target.closest('.contact-row')?.classList.toggle('selected', cb.checked);
+      updateBulkBar();
+      return;
+    }
+    const edit = e.target.closest('[data-ct-edit]');
+    if (edit) { openContactModal(edit.dataset.ctEdit); return; }
+    const del = e.target.closest('[data-ct-del]');
+    if (del) {
+      if (!confirm('Delete this contact?')) return;
+      try {
+        await apiPost({ action: 'admin_delete_contact', id: del.dataset.ctDel });
+        contactsState.contacts = contactsState.contacts.filter(c => c.id !== del.dataset.ctDel);
+        contactsState.selected.delete(del.dataset.ctDel);
+        paintContacts();
+        toast('Deleted');
+      } catch (err) { toast(err.message); }
+    }
+  });
+
+  $('#tagsList')?.addEventListener('click', async (e) => {
+    const del = e.target.closest('[data-tag-del]');
+    if (del) {
+      if (!confirm('Delete tag "' + del.dataset.tagDel + '"? Contacts keep the tag string in their row but it disappears from filters.')) return;
+      try {
+        await apiPost({ action: 'admin_delete_tag', tag: del.dataset.tagDel });
+        contactsState.tags = contactsState.tags.filter(t => t.tag !== del.dataset.tagDel);
+        populateTagFilter();
+        paintTags();
+        toast('Tag deleted');
+      } catch (err) { toast(err.message); }
+    }
+  });
+}
+
+/* ---------- Contact add/edit modal ---------- */
+function openContactModal(id) {
+  const existing = id ? contactsState.contacts.find(c => c.id === id) : null;
+  const tagOptions = contactsState.tags.map(t => `<option value="${escAttr(t.tag)}">${escHtml(t.tag)}</option>`).join('');
+  const current = existing ? (existing.tags || '').split(',').map(s=>s.trim()) : [];
+  const modal = openSimpleModal(existing ? 'Edit contact' : 'New contact', `
+    <label>Name<input type="text" id="m_name" value="${escAttr(existing?.name || '')}" /></label>
+    <label>Phone (with country code)<input type="tel" id="m_phone" value="${escAttr(existing?.phone || '')}" placeholder="+971…" /></label>
+    <label>Email<input type="email" id="m_email" value="${escAttr(existing?.email || '')}" /></label>
+    <label>Country<input type="text" id="m_country" value="${escAttr(existing?.country || '')}" /></label>
+    <label>Tags (comma-separated)<input type="text" id="m_tags" value="${escAttr(existing?.tags || '')}" list="m_tagsList" /></label>
+    <datalist id="m_tagsList">${tagOptions}</datalist>
+    <label>Notes<textarea id="m_notes" rows="3">${escHtml(existing?.notes || '')}</textarea></label>
+  `, async () => {
+    const payload = {
+      name: $('#m_name').value.trim(),
+      phone: $('#m_phone').value.trim(),
+      email: $('#m_email').value.trim(),
+      country: $('#m_country').value.trim(),
+      tags: $('#m_tags').value.trim() || 'Untagged',
+      notes: $('#m_notes').value.trim()
+    };
+    if (existing) payload.action = 'admin_update_contact', payload.id = existing.id;
+    else payload.action = 'admin_add_contact';
+    await apiPost(payload);
+    toast(existing ? 'Updated' : 'Added');
+    closeSimpleModal();
+    await refreshContacts(true);
+  });
+}
+
+/* ---------- Tag modal ---------- */
+function openTagModal() {
+  openSimpleModal('New tag', `
+    <label>Tag name<input type="text" id="m_tag" placeholder="VIP, Al Nahda, Bhuna regulars…" /></label>
+    <label>Color<input type="color" id="m_color" value="#2D5F5D" /></label>
+    <label>Description<input type="text" id="m_desc" placeholder="optional" /></label>
+  `, async () => {
+    const tag = $('#m_tag').value.trim();
+    if (!tag) { toast('Tag name required'); return; }
+    await apiPost({ action: 'admin_add_tag', tag, color: $('#m_color').value, description: $('#m_desc').value.trim() });
+    toast('Tag added');
+    closeSimpleModal();
+    await refreshContacts(true);
+  });
+}
+
+/* ---------- Bulk-tag modal ---------- */
+function openBulkTagModal() {
+  if (!contactsState.selected.size) { toast('Select contacts first'); return; }
+  const tagOptions = contactsState.tags.map(t => `<option value="${escAttr(t.tag)}">${escHtml(t.tag)}</option>`).join('');
+  openSimpleModal('Add tag to ' + contactsState.selected.size + ' contacts', `
+    <label>Pick or type a tag<input type="text" id="m_bulkTag" list="m_bulkTagList" placeholder="Tag name" /></label>
+    <datalist id="m_bulkTagList">${tagOptions}</datalist>
+  `, async () => {
+    const tag = $('#m_bulkTag').value.trim();
+    if (!tag) { toast('Tag required'); return; }
+    const ids = Array.from(contactsState.selected);
+    toast(`Tagging ${ids.length}…`);
+    for (let i = 0; i < ids.length; i++) {
+      const c = contactsState.contacts.find(x => x.id === ids[i]);
+      if (!c) continue;
+      const tagSet = new Set((c.tags || '').split(',').map(s=>s.trim()).filter(Boolean));
+      tagSet.add(tag);
+      tagSet.delete('Untagged');
+      const newTags = Array.from(tagSet).join(',');
+      try {
+        await apiPost({ action: 'admin_update_contact', id: c.id, tags: newTags });
+        c.tags = newTags;
+      } catch (e) { console.error(e); }
+    }
+    toast('Tagged ' + ids.length);
+    closeSimpleModal();
+    paintContacts();
+    // Refresh tag counts in background
+    apiPost({ action: 'admin_recount_tags' }).then(() => refreshContacts(true));
+  });
+}
+
+/* ---------- Broadcast composer ---------- */
+function openBroadcastModal() {
+  if (!contactsState.selected.size) { toast('Select contacts first'); return; }
+  const ids = Array.from(contactsState.selected);
+  const recipients = ids.map(id => contactsState.contacts.find(c => c.id === id)).filter(Boolean);
+  const sample = recipients[0];
+
+  openSimpleModal(`📢 Compose broadcast (${recipients.length})`, `
+    <label>Campaign name<input type="text" id="b_name" placeholder="Eid promo, Friday Bhuna…" /></label>
+    <label>Message
+      <textarea id="b_message" rows="5" placeholder="Assalamu Alaikum {name}, this Friday Bhuna Gosht is hot off the stove. Order from spicehaus.org. Mutton 205 / Beef 185 per kg."></textarea>
+    </label>
+    <p class="muted small"><strong>{name}</strong> is replaced with each contact's first name. <strong>{phone}</strong> is also available.</p>
+    <div class="bc-modes">
+      <label><input type="radio" name="b_method" value="wa_links" checked /> <strong>wa.me links</strong> — tap each link to send (works for everyone, slow)</label>
+      <label><input type="radio" name="b_method" value="broadcast_list" /> <strong>WhatsApp Broadcast List</strong> — copy phone list, paste in WA (max 256, must have saved your number)</label>
+    </div>
+    <p class="muted small">Recipients preview: ${recipients.slice(0,5).map(r=>escHtml(r.name)).join(', ')}${recipients.length>5?` +${recipients.length-5} more`:''}</p>
+  `, async () => {
+    const name = $('#b_name').value.trim() || 'Broadcast';
+    const message = $('#b_message').value.trim();
+    if (!message) { toast('Message required'); return; }
+    const method = document.querySelector('input[name="b_method"]:checked').value;
+
+    // Record broadcast metadata
+    const targetTags = Array.from(new Set(recipients.flatMap(r => (r.tags||'').split(',').map(s=>s.trim()).filter(Boolean))));
+    try {
+      await apiPost({
+        action: 'admin_create_broadcast',
+        name, message,
+        target_tags: targetTags,
+        recipient_count: recipients.length,
+        method
+      });
+    } catch (e) { console.warn('save broadcast failed', e); }
+
+    if (method === 'broadcast_list') {
+      const phones = recipients.map(r => r.phone).join('\n');
+      showBroadcastResult('WhatsApp Broadcast List', `
+        <p>Copy these <strong>${recipients.length}</strong> phone numbers, then in WhatsApp: <em>New chat → New broadcast → paste numbers</em>. Max 256 per list.</p>
+        <textarea readonly rows="8" style="width:100%;font-family:monospace;font-size:13px">${escHtml(phones)}</textarea>
+        <button type="button" class="btn primary" onclick="copyText(this.previousElementSibling.value); toast('Copied!')">📋 Copy phone list</button>
+        <hr/>
+        <p class="muted small">Your message (paste into the broadcast):</p>
+        <textarea readonly rows="6" style="width:100%">${escHtml(message)}</textarea>
+        <button type="button" class="btn primary" onclick="copyText(this.previousElementSibling.value); toast('Message copied!')">📋 Copy message</button>
+      `);
+    } else {
+      // wa.me links
+      const links = recipients.map(r => {
+        const fname = (r.name || '').split(/\s+/)[0] || 'friend';
+        const msg = message.replace(/\{name\}/g, fname).replace(/\{phone\}/g, r.phone);
+        const num = (r.phone||'').replace(/[^0-9]/g, '');
+        return { name: r.name, phone: r.phone, url: `https://wa.me/${num}?text=${encodeURIComponent(msg)}` };
+      });
+      const html = links.map((l, i) => `
+        <div class="bc-link-row">
+          <span class="bc-link-name">${i+1}. ${escHtml(l.name)} (${escHtml(l.phone)})</span>
+          <a class="btn primary xs" href="${l.url}" target="_blank" rel="noopener" onclick="markBroadcastClick(${i})">Send 💬</a>
+        </div>
+      `).join('');
+      showBroadcastResult(`Send via wa.me (${links.length})`, `
+        <p>Tap each <strong>Send</strong> to open WhatsApp with the message pre-filled. Send, then come back here.</p>
+        <div class="bc-links">${html}</div>
+      `);
+    }
+  });
+}
+
+function showBroadcastResult(title, bodyHtml) {
+  closeSimpleModal();
+  openSimpleModal(title, bodyHtml, null, 'Done');
+}
+
+function copyText(t) {
+  navigator.clipboard?.writeText(t).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = t; document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); } catch (e) {}
+    document.body.removeChild(ta);
+  });
+}
+window.copyText = copyText;
+window.markBroadcastClick = function() { /* placeholder for analytics */ };
+
+/* ---------- Simple modal helper ---------- */
+function openSimpleModal(title, bodyHtml, onSave, saveLabel) {
+  let m = document.getElementById('simpleModal');
+  if (!m) {
+    m = document.createElement('div');
+    m.id = 'simpleModal';
+    m.className = 'simple-modal';
+    m.innerHTML = `
+      <div class="sm-backdrop"></div>
+      <div class="sm-dialog">
+        <div class="sm-head">
+          <div class="sm-title"></div>
+          <button type="button" class="sm-close">✕</button>
+        </div>
+        <div class="sm-body"></div>
+        <div class="sm-foot">
+          <button type="button" class="btn ghost sm-cancel">Cancel</button>
+          <button type="button" class="btn primary sm-save">Save</button>
+        </div>
+      </div>`;
+    document.body.appendChild(m);
+    m.querySelector('.sm-close').addEventListener('click', closeSimpleModal);
+    m.querySelector('.sm-cancel').addEventListener('click', closeSimpleModal);
+    m.querySelector('.sm-backdrop').addEventListener('click', closeSimpleModal);
+  }
+  m.querySelector('.sm-title').textContent = title;
+  m.querySelector('.sm-body').innerHTML = bodyHtml;
+  const saveBtn = m.querySelector('.sm-save');
+  saveBtn.textContent = saveLabel || 'Save';
+  saveBtn.onclick = onSave || closeSimpleModal;
+  if (!onSave) {
+    m.querySelector('.sm-cancel').style.display = 'none';
+  } else {
+    m.querySelector('.sm-cancel').style.display = '';
+  }
+  m.hidden = false;
+  return m;
+}
+function closeSimpleModal() {
+  const m = document.getElementById('simpleModal');
+  if (m) m.hidden = true;
+}
+
+/* ---------- Init when DOM ready ---------- */
+(function() {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initContactsEvents);
+  } else {
+    initContactsEvents();
+  }
+})();
+
+/* Use existing escapeHtml from admin.js */
+function escHtml(s) { return escapeHtml(s); }
+function escAttr(s) { return escapeHtml(s); }
