@@ -2653,31 +2653,101 @@ function initContactsEvents() {
 /* ---------- Contact add/edit modal ---------- */
 function openContactModal(id) {
   const existing = id ? contactsState.contacts.find(c => c.id === id) : null;
-  const tagOptions = contactsState.tags.map(t => `<option value="${escAttr(t.tag)}">${escHtml(t.tag)}</option>`).join('');
-  const current = existing ? (existing.tags || '').split(',').map(s=>s.trim()) : [];
-  const modal = openSimpleModal(existing ? 'Edit contact' : 'New contact', `
+  const current = new Set(
+    (existing ? existing.tags : '').split(',').map(s=>s.trim()).filter(Boolean)
+  );
+
+  // Build chip picker: every existing tag as a clickable chip
+  const allTags = contactsState.tags.map(t => t.tag);
+  // Make sure tags the contact already has appear even if missing from Tags sheet
+  current.forEach(t => { if (allTags.indexOf(t) === -1) allTags.push(t); });
+
+  const chipPickerHtml = allTags.map(t => {
+    const def = contactsState.tags.find(x => x.tag === t);
+    const color = def ? def.color : '#999';
+    const active = current.has(t);
+    return `<button type="button" class="tag-pick ${active?'active':''}" data-pick="${escAttr(t)}" style="--chip:${escAttr(color)}"><span class="dot"></span>${escHtml(t)}</button>`;
+  }).join('');
+
+  openSimpleModal(existing ? 'Edit contact' : 'New contact', `
     <label>Name<input type="text" id="m_name" value="${escAttr(existing?.name || '')}" /></label>
     <label>Phone (with country code)<input type="tel" id="m_phone" value="${escAttr(existing?.phone || '')}" placeholder="+971…" /></label>
     <label>Email<input type="email" id="m_email" value="${escAttr(existing?.email || '')}" /></label>
     <label>Country<input type="text" id="m_country" value="${escAttr(existing?.country || '')}" /></label>
-    <label>Tags (comma-separated)<input type="text" id="m_tags" value="${escAttr(existing?.tags || '')}" list="m_tagsList" /></label>
-    <datalist id="m_tagsList">${tagOptions}</datalist>
+    <label>Tags <small class="muted">(click to toggle, or type new + Enter)</small></label>
+    <div class="tag-picker" id="m_tagPicker">${chipPickerHtml}</div>
+    <div class="tag-picker-input">
+      <input type="text" id="m_newTag" placeholder="+ new tag (press Enter)" />
+      <button type="button" class="btn ghost small" id="m_newTagBtn">Add</button>
+    </div>
     <label>Notes<textarea id="m_notes" rows="3">${escHtml(existing?.notes || '')}</textarea></label>
   `, async () => {
+    const picked = Array.from(
+      document.querySelectorAll('#m_tagPicker .tag-pick.active')
+    ).map(b => b.dataset.pick);
     const payload = {
       name: $('#m_name').value.trim(),
       phone: $('#m_phone').value.trim(),
       email: $('#m_email').value.trim(),
       country: $('#m_country').value.trim(),
-      tags: $('#m_tags').value.trim() || 'Untagged',
+      tags: picked.length ? picked.join(',') : 'Untagged',
       notes: $('#m_notes').value.trim()
     };
-    if (existing) payload.action = 'admin_update_contact', payload.id = existing.id;
+    if (existing) { payload.action = 'admin_update_contact'; payload.id = existing.id; }
     else payload.action = 'admin_add_contact';
     await apiPost(payload);
+
+    // Untick this contact from the multi-select to avoid repetitive work
+    if (existing) {
+      contactsState.selected.delete(existing.id);
+      // Update in-memory contact so the row repaints with new tags
+      const idx = contactsState.contacts.findIndex(c => c.id === existing.id);
+      if (idx >= 0) {
+        contactsState.contacts[idx].tags = payload.tags;
+      }
+    }
     toast(existing ? 'Updated' : 'Added');
     closeSimpleModal();
-    await refreshContacts(true);
+    // Repaint in-place without a full refetch (saves 1–2s per edit)
+    paintContacts();
+    // Refresh tag counts quietly in the background
+    apiPost({ action: 'admin_recount_tags' }).then(() => {
+      apiGet('admin_tags', { force: true }).then(t => {
+        contactsState.tags = t.tags || [];
+        populateTagFilter();
+      });
+    }).catch(()=>{});
+  });
+
+  // Wire chip clicks
+  const picker = document.getElementById('m_tagPicker');
+  if (picker) {
+    picker.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-pick]');
+      if (!b) return;
+      b.classList.toggle('active');
+    });
+  }
+  // Add new tag from input
+  const addNewTag = () => {
+    const inp = document.getElementById('m_newTag');
+    const val = (inp?.value || '').trim();
+    if (!val) return;
+    // If chip already exists, just activate it
+    const ex = picker?.querySelector(`[data-pick="${CSS.escape(val)}"]`);
+    if (ex) { ex.classList.add('active'); inp.value = ''; return; }
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'tag-pick active';
+    btn.dataset.pick = val;
+    btn.style.setProperty('--chip', '#2D5F5D');
+    btn.innerHTML = '<span class="dot"></span>' + escHtml(val);
+    picker.appendChild(btn);
+    inp.value = '';
+  };
+  document.getElementById('m_newTagBtn')?.addEventListener('click', addNewTag);
+  document.getElementById('m_newTag')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); addNewTag(); }
   });
 }
 

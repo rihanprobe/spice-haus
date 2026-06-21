@@ -680,3 +680,14 @@ main#content { padding: 18px 16px; max-width: 700px; margin: 0 auto; }
 .ct-pager { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; padding: 12px 0; }
 .ct-pager .btn[disabled] { opacity: .35; pointer-events: none; }
 .ct-page-info { font-size: 13px; color: #555; padding: 0 8px; min-width: 110px; text-align: center; }
+
+/* Tag picker inside contact modal */
+.tag-picker { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px; background: #faf6ee; border: 1px solid #e6dfd2; border-radius: 8px; max-height: 200px; overflow-y: auto; margin-top: 4px; margin-bottom: 8px; }
+.tag-pick { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: #fff; border: 1px solid #d8cfbb; border-radius: 999px; font-size: 13px; font-weight: 500; color: #444; cursor: pointer; transition: all 0.15s ease; }
+.tag-pick:hover { background: #fff8e8; border-color: #c99a4b; }
+.tag-pick.active { background: var(--chip, #2D5F5D); color: #fff; border-color: transparent; }
+.tag-pick.active .dot { background: rgba(255,255,255,0.7); }
+.tag-pick .dot { width: 8px; height: 8px; border-radius: 999px; background: var(--chip, #999); }
+.tag-picker-input { display: flex; gap: 6px; margin-bottom: 12px; }
+.tag-picker-input input { flex: 1; padding: 8px 10px; border: 1px solid #d8cfbb; border-radius: 6px; font: inherit; }
+.sm-body label small.muted { color: #999; font-weight: normal; }
