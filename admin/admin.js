@@ -2334,8 +2334,30 @@ const contactsState = {
   selected: new Set(),
   filters: { q: '', tag: '', country: '' },
   subtab: 'contacts',
-  loaded: false
+  loaded: false,
+  page: 1,
+  pageSize: 100
 };
+
+/* Coerce all fields to safe strings */
+function normContact(c) {
+  return {
+    id:         String(c.id || ''),
+    name:       String(c.name == null ? '' : c.name),
+    phone:      String(c.phone == null ? '' : c.phone),
+    email:      String(c.email == null ? '' : c.email),
+    country:    String(c.country == null ? '' : c.country),
+    tags:       String(c.tags == null ? '' : c.tags),
+    notes:      String(c.notes == null ? '' : c.notes),
+    opt_in:     String(c.opt_in == null ? '' : c.opt_in),
+    created_at: String(c.created_at == null ? '' : c.created_at),
+    updated_at: String(c.updated_at == null ? '' : c.updated_at)
+  };
+}
+
+function digitsOnly(s) {
+  return String(s == null ? '' : s).replace(/[^0-9]/g, '');
+}
 
 async function refreshContacts(force) {
   if (contactsState.loaded && !force) {
@@ -2351,7 +2373,7 @@ async function refreshContacts(force) {
       apiGet('admin_tags',     { force: !!force }),
       apiGet('admin_broadcasts',{ force: !!force })
     ]);
-    contactsState.contacts  = c.contacts || [];
+    contactsState.contacts  = (c.contacts || []).map(normContact);
     contactsState.tags      = t.tags || [];
     contactsState.broadcasts= b.broadcasts || [];
     contactsState.loaded = true;
@@ -2390,7 +2412,7 @@ function filteredContacts() {
   const tag = contactsState.filters.tag;
   const country = contactsState.filters.country;
   return contactsState.contacts.filter(c => {
-    if (tag && !(c.tags || '').split(',').map(s=>s.trim()).includes(tag)) return false;
+    if (tag && !c.tags.split(',').map(s=>s.trim()).includes(tag)) return false;
     if (country && c.country !== country) return false;
     if (q) {
       const hay = (c.name + ' ' + c.phone + ' ' + c.email + ' ' + c.tags).toLowerCase();
@@ -2405,24 +2427,35 @@ function paintContacts() {
   if (!list) return;
   const all = filteredContacts();
   const total = contactsState.contacts.length;
-  const shown = all.slice(0, 300);  // virtualise: top 300
+  const pageSize = contactsState.pageSize;
+  const totalPages = Math.max(1, Math.ceil(all.length / pageSize));
+  if (contactsState.page > totalPages) contactsState.page = totalPages;
+  if (contactsState.page < 1) contactsState.page = 1;
+  const startIdx = (contactsState.page - 1) * pageSize;
+  const endIdx = startIdx + pageSize;
+  const shown = all.slice(startIdx, endIdx);
 
   $('#contactsSummary').textContent =
     `${all.length.toLocaleString()} of ${total.toLocaleString()} contacts` +
-    (shown.length < all.length ? ` · showing first ${shown.length}` : '');
+    (all.length > pageSize ? ` · page ${contactsState.page}/${totalPages} (${startIdx+1}\u2013${Math.min(endIdx, all.length)})` : '');
 
   if (!shown.length) {
     list.innerHTML = '<p class="muted small">No contacts match.</p>';
     return;
   }
-  list.innerHTML = shown.map(c => {
-    const tags = (c.tags || 'Untagged').split(',').map(t => t.trim()).filter(Boolean);
-    const tagHtml = tags.map(t => {
-      const def = contactsState.tags.find(x => x.tag === t);
-      const color = def ? def.color : '#999';
-      return `<span class="ct-tag" style="--chip:${escAttr(color)}">${escHtml(t)}</span>`;
-    }).join(' ');
+
+  const rowsHtml = shown.map(c => {
+    let tagHtml = '';
+    try {
+      const tagsArr = (c.tags || 'Untagged').split(',').map(t => t.trim()).filter(Boolean);
+      tagHtml = tagsArr.map(t => {
+        const def = contactsState.tags.find(x => x.tag === t);
+        const color = def ? def.color : '#999';
+        return `<span class="ct-tag" style="--chip:${escAttr(color)}">${escHtml(t)}</span>`;
+      }).join(' ');
+    } catch (e) { tagHtml = ''; }
     const isSel = contactsState.selected.has(c.id);
+    const waNum = digitsOnly(c.phone);
     return `
       <div class="contact-row ${isSel?'selected':''}" data-id="${escAttr(c.id)}">
         <label class="ct-check">
@@ -2438,12 +2471,26 @@ function paintContacts() {
           <div class="ct-tags">${tagHtml}</div>
         </div>
         <div class="ct-actions">
-          <a class="btn ghost xs" href="https://wa.me/${(c.phone||'').replace(/[^0-9]/g,'')}" target="_blank" title="WhatsApp">💬</a>
-          <button type="button" class="btn ghost xs" data-ct-edit="${escAttr(c.id)}">✏️</button>
-          <button type="button" class="btn ghost xs" data-ct-del="${escAttr(c.id)}">🗑</button>
+          <a class="btn ghost xs" href="https://wa.me/${waNum}" target="_blank" title="WhatsApp">\uD83D\uDCAC</a>
+          <button type="button" class="btn ghost xs" data-ct-edit="${escAttr(c.id)}">\u270F\uFE0F</button>
+          <button type="button" class="btn ghost xs" data-ct-del="${escAttr(c.id)}">\uD83D\uDDD1</button>
         </div>
       </div>`;
   }).join('');
+
+  let pagerHtml = '';
+  if (totalPages > 1) {
+    pagerHtml = `
+      <div class="ct-pager">
+        <button type="button" class="btn ghost small" data-ct-page="first" ${contactsState.page<=1?'disabled':''}>\u00ab First</button>
+        <button type="button" class="btn ghost small" data-ct-page="prev"  ${contactsState.page<=1?'disabled':''}>\u2039 Prev</button>
+        <span class="ct-page-info">Page ${contactsState.page} of ${totalPages}</span>
+        <button type="button" class="btn ghost small" data-ct-page="next"  ${contactsState.page>=totalPages?'disabled':''}>Next \u203A</button>
+        <button type="button" class="btn ghost small" data-ct-page="last"  ${contactsState.page>=totalPages?'disabled':''}>Last \u00bb</button>
+      </div>`;
+  }
+
+  list.innerHTML = pagerHtml + rowsHtml + pagerHtml;
   updateBulkBar();
 }
 
@@ -2500,15 +2547,18 @@ function initContactsEvents() {
 
   $('#contactSearch')?.addEventListener('input', (e) => {
     contactsState.filters.q = e.target.value;
+    contactsState.page = 1;
     paintContacts();
   });
   $('#contactTagFilter')?.addEventListener('change', (e) => {
     contactsState.filters.tag = e.target.value;
+    contactsState.page = 1;
     populateTagFilter();
     paintContacts();
   });
   $('#contactCountryFilter')?.addEventListener('change', (e) => {
     contactsState.filters.country = e.target.value;
+    contactsState.page = 1;
     paintContacts();
   });
   $('#contactTagChips')?.addEventListener('click', (e) => {
@@ -2516,6 +2566,7 @@ function initContactsEvents() {
     if (!b) return;
     const t = b.dataset.tag;
     contactsState.filters.tag = contactsState.filters.tag === t ? '' : t;
+    contactsState.page = 1;
     $('#contactTagFilter').value = contactsState.filters.tag;
     populateTagFilter();
     paintContacts();
@@ -2523,7 +2574,8 @@ function initContactsEvents() {
   $('#contactsRefresh')?.addEventListener('click', () => refreshContacts(true));
   $('#newContactBtn')?.addEventListener('click', openContactModal);
   $('#selectAllBtn')?.addEventListener('click', () => {
-    filteredContacts().slice(0, 300).forEach(c => contactsState.selected.add(c.id));
+    // Select all on the current filter (not just current page)
+    filteredContacts().forEach(c => contactsState.selected.add(c.id));
     paintContacts();
   });
   $('#clearSelBtn')?.addEventListener('click', () => {
@@ -2544,8 +2596,22 @@ function initContactsEvents() {
     $$('[data-ct-pane]').forEach(p => p.hidden = p.dataset.ctPane !== contactsState.subtab);
   });
 
-  // Delegated row actions
+  // Pager + delegated row actions
   $('#contactsList')?.addEventListener('click', async (e) => {
+    const pg = e.target.closest('[data-ct-page]');
+    if (pg) {
+      const dir = pg.dataset.ctPage;
+      const all = filteredContacts();
+      const totalPages = Math.max(1, Math.ceil(all.length / contactsState.pageSize));
+      if (dir === 'first') contactsState.page = 1;
+      else if (dir === 'prev') contactsState.page = Math.max(1, contactsState.page - 1);
+      else if (dir === 'next') contactsState.page = Math.min(totalPages, contactsState.page + 1);
+      else if (dir === 'last') contactsState.page = totalPages;
+      paintContacts();
+      const sec = $('section[data-tab="contacts"]');
+      if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
     const cb = e.target.closest('[data-ct-check]');
     if (cb) {
       const id = cb.dataset.ctCheck;
@@ -2715,7 +2781,7 @@ function openBroadcastModal() {
       const links = recipients.map(r => {
         const fname = (r.name || '').split(/\s+/)[0] || 'friend';
         const msg = message.replace(/\{name\}/g, fname).replace(/\{phone\}/g, r.phone);
-        const num = (r.phone||'').replace(/[^0-9]/g, '');
+        const num = digitsOnly(r.phone);
         return { name: r.name, phone: r.phone, url: `https://wa.me/${num}?text=${encodeURIComponent(msg)}` };
       });
       const html = links.map((l, i) => `
